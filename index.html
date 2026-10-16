@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f4f0e7">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="DU Timetable">
+<meta name="description" content="Create a personalisable University of Delhi college timetable with flexible class timings and dated reminders.">
+<title>DU College Timetable Builder</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+</head>
+<body>
+<header class="app-header">
+  <div class="brand-row">
+    <div class="brand">
+      <img class="brand-logo" src="assets/logo.svg" alt="DU College Timetable Builder logo">
+      <div>
+        <h1>DU College Timetable Builder</h1>
+        <p>Plan your classes. Keep track of submissions, tests and practicals.</p>
+      </div>
+    </div>
+    <span class="header-tag">FREE · STUDENT-FRIENDLY</span>
+  </div>
+</header>
+<main>
+<section class="panel editor" aria-label="Timetable editor">
+  <div class="section-head">
+    <div><h2>Set up your timetable</h2><p class="section-intro">Fill in the details once. No coding needed.</p></div>
+    <span class="pill accent">EDITOR</span>
+  </div>
+
+  <form id="settingsForm">
+    <div class="form-section">
+      <h3>01 · Timetable details</h3>
+      <div class="field"><label for="collegeName">College name (optional)</label><input id="collegeName" placeholder="e.g. Dyal Singh College"></div>
+      <div class="field"><label for="courseName">Course / programme</label><input id="courseName" placeholder="e.g. B.Sc. Physical Science with CS"></div>
+      <div class="grid2">
+        <div class="field"><label for="semester">Semester</label><select id="semester"><option value="">Choose semester</option><option>Semester I</option><option>Semester II</option><option>Semester III</option><option>Semester IV</option><option>Semester V</option><option>Semester VI</option><option>Semester VII</option><option>Semester VIII</option><option>Other</option></select></div>
+        <div class="field"><label for="shift">College shift</label><select id="shift"><option>Morning</option><option>Day</option><option>Evening</option><option>Other</option></select></div>
+      </div>
+      <div class="field"><label for="studentName">Student name (optional)</label><input id="studentName" placeholder="Leave blank for a shareable timetable"><span class="hint">Semester and course help friends identify the right timetable. Your name is optional for privacy.</span></div>
+      <div class="field palette-field"><label for="palette">Class colour palette</label><select id="palette">
+        <option value="paper">Soft Paper · warm and gentle</option><option value="mint">Mint · calm greens</option><option value="sky">Sky · cool blues</option><option value="rose">Rose · soft pinks</option><option value="lavender">Lavender · muted purples</option><option value="sunset">Sunset · peach and apricot</option><option value="aqua">Aqua · teal and sea glass</option><option value="forest">Forest · botanical pastels</option>
+      </select><div id="palettePreview" class="palette-preview" aria-label="Preview of course category colours"></div><span class="hint">These colours are for class categories (Core, Lab, GE, AEC, etc.), not the college's original timetable. Choose a soft palette that feels comfortable to look at.</span></div>
+    </div>
+    <div class="form-section">
+      <h3>02 · College timings</h3>
+      <div class="field"><label for="startTime">First class starts at</label><input id="startTime" type="time" value="08:00" required></div>
+      <div class="grid2">
+        <div class="field"><label for="periodMinutes">Length of each slot</label><select id="periodMinutes"><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="50">50 minutes</option><option value="60" selected>60 minutes</option><option value="75">75 minutes</option><option value="90">90 minutes</option></select></div>
+        <div class="field"><label for="slotCount">Slots per day</label><select id="slotCount"><option value="6">6 slots</option><option value="7">7 slots</option><option value="8">8 slots</option><option value="9">9 slots</option><option value="10">10 slots</option><option value="11" selected>11 slots</option><option value="12">12 slots</option><option value="13">13 slots</option><option value="14">14 slots</option></select></div>
+      </div>
+      <div class="actions">
+        <button type="button" class="secondary small" data-preset-start="08:00" data-preset-shift="Morning">Morning · 8:00</button>
+        <button type="button" class="secondary small" data-preset-start="08:30" data-preset-shift="Morning">Winter · 8:30</button>
+        <button type="button" class="secondary small" data-preset-start="14:00" data-preset-shift="Evening">Evening · 2:00</button>
+      </div>
+      <p class="hint">Choose a preset or enter your own start time, then press Apply. Every slot is recalculated from these settings, so 8:30–9:30 and evening schedules work too.</p>
+      <div class="actions"><button type="submit" class="primary">Apply timetable settings</button></div>
+    </div>
+  </form>
+  <div class="status" id="settingsStatus" role="status" aria-live="polite"></div>
+
+  <hr style="border:0;border-top:1px solid #e9e6de;margin:13px 0">
+  <div class="section-head">
+    <div><h2 id="classFormHeading">Add a class</h2><p class="section-intro">Short forms appear on the timetable; full details appear on tap or hover.</p></div>
+  </div>
+  <form id="classForm">
+    <div class="grid2">
+      <div class="field"><label for="classDay">Day</label><select id="classDay" required><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select></div>
+      <div class="field"><label for="classStart">Starts at</label><select id="classStart" required></select></div>
+    </div>
+    <div class="field"><label for="duration">Class duration</label><select id="duration"><option value="1">1 slot</option><option value="2">2 slots</option><option value="3">3 slots</option></select><span class="hint" id="durationHint">One slot = 60 minutes.</span></div>
+    <div class="field"><label for="short">Subject short form <span style="color:#9a2b2b">*</span></label><input id="short" placeholder="e.g. RA, DSA, PHY LAB" maxlength="30" required></div>
+    <div class="grid2">
+      <div class="field"><label for="room">Room number</label><input id="room" placeholder="e.g. 204 / Lab 2" maxlength="40"></div>
+      <div class="field"><label for="teacherShort">Teacher initials</label><input id="teacherShort" placeholder="e.g. AS" maxlength="20"></div>
+    </div>
+    <div class="field"><label for="category">Small category label</label><select id="category"><option value="Core">Core</option><option value="Lecture">Lecture</option><option value="Tutorial">Tutorial</option><option value="Lab">Lab</option><option value="GE">GE</option><option value="AEC">AEC</option><option value="SEC">SEC</option><option value="DSE">DSE</option><option value="VAC">VAC</option><option value="Practical">Practical</option><option value="Other">Other</option></select></div>
+    <div class="field"><label for="fullSubject">Full subject name</label><input id="fullSubject" placeholder="e.g. Elements of Real Analysis"></div>
+    <div class="field"><label for="teacherFull">Full teacher name</label><input id="teacherFull" placeholder="e.g. Dr. Anil Sharma"></div>
+    <div class="field"><label for="extra">Extra details (optional)</label><textarea id="extra" placeholder="e.g. Lab group, building, room instructions, topics or anything else"></textarea></div>
+    <div class="field"><label for="colour">Class colour override (optional)</label><select id="colour"><option value="auto">Use category palette</option><option value="custom">Choose a custom colour</option></select><div id="customColourWrap" class="custom-colour-wrap" hidden><input type="color" id="customColour" value="#e5e9d8" aria-label="Choose a custom class colour"><span class="hint">Only this class will use the custom colour.</span></div></div>
+    <div class="actions"><button type="submit" class="primary" id="saveClass">Add class</button><button type="button" class="secondary" id="cancelClassEdit" hidden>Cancel edit</button><button type="button" class="secondary" id="clearClassForm">Clear form</button></div>
+  </form>
+  <div class="status" id="classStatus" role="status" aria-live="polite"></div>
+
+  <div class="subheading"><h3>Classes added</h3><span id="classCount" class="pill">0 classes</span></div>
+  <div id="classList" class="entry-list"></div>
+
+  <hr style="border:0;border-top:1px solid #e9e6de;margin:17px 0">
+  <div class="section-head"><div><h2>Save & share</h2><p class="section-intro">Changes save in this browser automatically.</p></div></div>
+  <div class="actions">
+    <button type="button" class="primary" id="exportBtn">Download backup</button>
+    <button type="button" class="secondary" id="importBtn">Import backup</button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+    <button type="button" class="secondary" id="printBtn">Print / Save PDF</button>
+    <button type="button" class="secondary" id="shareBtn">Share website</button>
+    <button type="button" class="danger" id="clearAll">Clear timetable</button>
+  </div>
+  <p id="shareStatus" class="share-status" aria-live="polite"></p>
+  <div class="mini-note"><b>How backups work:</b> Download backup saves your classes, timings, palette, semester and reminders as a <code>.json</code> file. To load it on another device, click Import backup and choose that JSON file from Downloads or WhatsApp. You do not need View Source or to upload an HTML file. Use PDF for a view-only copy.</div>
+</section>
+
+<section class="panel preview" aria-label="Timetable preview">
+  <div class="preview-top">
+    <div class="preview-title">
+      <h2 id="displayTitle">My College Timetable</h2>
+      <p id="displayMeta">Set your course and semester in the editor.</p>
+      <p id="displayTiming" style="margin-top:3px"></p>
+    </div>
+    <div class="toolbar no-print">
+      <label class="checkbox-label"><input type="checkbox" id="showSaturday" checked> Saturday</label>
+      <label class="checkbox-label"><input type="checkbox" id="showSunday"> Sunday</label>
+      <button type="button" class="secondary" id="demoBtn">Load sample</button>
+    </div>
+  </div>
+  <div class="storage-banner no-print"><div class="storage-icon" aria-hidden="true">✓</div><div class="storage-copy"><strong>Saved on this device</strong><span>This timetable and its reminders auto-save in this browser. To move phones or protect against browser resets, download a JSON backup and keep it somewhere safe.</span></div><button type="button" class="secondary small" id="quickBackupBtn">Back up now</button></div>
+  <p class="scroll-hint">Swipe sideways to see all time slots.</p>
+  <div class="table-wrap">
+    <table id="timetable" aria-label="Weekly class timetable"><thead><tr id="timeHeader"><th>Day</th></tr></thead><tbody id="tableBody"></tbody></table>
+  </div>
+  <div id="mobileSchedule" class="mobile-schedule" aria-label="Mobile weekly timetable"></div>
+  <div class="legend" id="legend" aria-label="Course category colour legend">
+    <span data-category="Core">Core</span><span data-category="Lecture">Lecture</span><span data-category="Tutorial">Tutorial</span><span data-category="Lab">Lab</span><span data-category="GE">GE</span><span data-category="AEC">AEC</span><span data-category="SEC">SEC</span><span data-category="DSE">DSE</span><span data-category="VAC">VAC</span>
+  </div>
+
+  <section class="reminder-panel" aria-label="Personal reminders">
+    <div class="reminder-header">
+      <div><h3>Reminders & deadlines</h3><p>Tests, assignments, practical files, submissions and anything you don't want to forget.</p></div>
+      <span class="pill accent" id="reminderCount">0 reminders</span>
+    </div>
+    <div id="reminderList" class="reminder-list"></div>
+    <p id="noReminders" class="hint">No reminders yet. Add a date, time, subject and note in the editor.</p>
+  </section>
+  <p class="hint" style="margin-top:10px">On desktop, hover over a class for details. On a phone, tap a class. Reminders appear here whenever you open the timetable; this version does not send alerts when the page is closed.</p>
+</section>
+
+<section class="panel editor" id="reminderEditor" aria-label="Reminder editor">
+  <div class="section-head"><div><h2 id="reminderFormHeading">Add a reminder</h2><p class="section-intro">Make a dated note for a test, assignment deadline or practical file.</p></div><span class="pill accent">NOTES</span></div>
+  <form id="reminderForm">
+    <div class="field"><label for="reminderTitle">Reminder title / what to do <span style="color:#9a2b2b">*</span></label><input id="reminderTitle" placeholder="e.g. Submit practical file" required maxlength="100"></div>
+    <div class="grid2">
+      <div class="field"><label for="reminderDate">Date <span style="color:#9a2b2b">*</span></label><input id="reminderDate" type="date" required></div>
+      <div class="field"><label for="reminderTime">Time (optional)</label><input id="reminderTime" type="time"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label for="reminderSubject">Subject</label><input id="reminderSubject" placeholder="e.g. Data Structures"></div>
+      <div class="field"><label for="reminderType">Type</label><select id="reminderType"><option>Assignment</option><option>Test / Exam</option><option>Practical file</option><option>Presentation</option><option>College event</option><option>Other</option></select></div>
+    </div>
+    <div class="field"><label for="reminderNotes">Extra note (optional)</label><textarea id="reminderNotes" placeholder="What to bring, chapters to prepare, submission instructions..."></textarea></div>
+    <div class="actions"><button type="submit" class="primary" id="saveReminder">Add reminder</button><button type="button" class="secondary" id="cancelReminderEdit" hidden>Cancel edit</button><button type="button" class="secondary" id="clearReminderForm">Clear form</button></div>
+  </form>
+  <div class="status" id="reminderStatus" role="status" aria-live="polite"></div>
+  <div class="mini-note"><b>Keep your reminders safe:</b> this website does not sync them to an account or cloud. Export a backup after important changes and store the JSON file in Drive, Files, or another safe location. On a new phone, open this same website and use Import backup. Clearing browser storage can erase local data.</div>
+</section>
+</main>
+
+<footer class="site-footer no-print" id="contact">
+  <div class="footer-inner">
+    <div class="footer-brand"><img src="assets/logo.svg" alt="" class="footer-logo"><div><strong>DU College Timetable Builder</strong><p>A student-friendly timetable builder made for flexible college schedules.</p></div></div>
+    <div class="footer-feedback"><h2>Help make it better</h2><p>Suggestions, UI improvements, bugs or feedback? Contact the creator.</p>
+      <nav class="contact-links" aria-label="Creator contact links">
+        <a id="contactEmail" class="contact-link" href="#contact" aria-disabled="true" title="Add your email in contact-config.js"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg><span>Email</span></a>
+        <a id="contactInstagram" class="contact-link" href="#contact" aria-disabled="true" title="Add your Instagram handle in contact-config.js"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg><span>Instagram</span></a>
+        <a id="contactReddit" class="contact-link" href="#contact" aria-disabled="true" title="Add your Reddit username in contact-config.js"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#FF4500" stroke="none"/><path d="M15.7 9.2a1.25 1.25 0 1 1 2.1 1.3c.12.45.2.93.2 1.42 0 2.65-2.68 4.8-6 4.8s-6-2.15-6-4.8c0-.5.08-.97.2-1.42a1.25 1.25 0 1 1 1.9-1.48c1-.65 2.28-1.03 3.68-1.03.5 0 .98.05 1.44.15l.86-4.05 3.1.66-.28 1.28-2.05-.44-.77 3.61c.6.2 1.16.48 1.62.82Z" fill="#fff" stroke="none"/><circle cx="10" cy="12" r=".8" fill="#FF4500" stroke="none"/><circle cx="14" cy="12" r=".8" fill="#FF4500" stroke="none"/><path d="M10.2 14c1.1.75 2.5.75 3.6 0" fill="none" stroke="#FF4500" stroke-width=".9" stroke-linecap="round"/></svg><span>Reddit</span></a>
+      </nav>
+      <p class="contact-hint" id="contactHint">Add your email and social usernames in <code>contact-config.js</code> before publishing.</p>
+    </div>
+    <div class="footer-bottom"><span>© <span id="footerYear"></span> DU College Timetable Builder</span><span>Made for students · Keep a backup of important data</span></div>
+  </div>
+</footer>
+
+<dialog id="detailDialog">
+  <h2 id="dialogTitle">Class details</h2>
+  <div id="dialogLines" class="detail-lines"></div>
+  <div class="actions"><button type="button" class="primary" id="closeDialog">Close</button></div>
+</dialog>
+
+<script src="palettes.js"></script>
+<script src="contact-config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
