@@ -1,0 +1,31 @@
+{
+  "id": "minimal-neutral",
+  "name": "Minimal Neutral",
+  "mood": "quiet stone and sharp typography",
+  "interface": {
+    "page": "#F0F0ED",
+    "surface": "#FFFFFF",
+    "surfaceAlt": "#E5E5E1",
+    "ink": "#20211F",
+    "muted": "#686963",
+    "line": "#D2D3CD",
+    "accent": "#454A42",
+    "accentInk": "#FFFFFF",
+    "header": "#222521",
+    "headerInk": "#FFFFFF",
+    "highlight": "#BFC4B3"
+  },
+  "categories": {
+    "Core": "#C8CFBE",
+    "Lecture": "#D9C7BA",
+    "Tutorial": "#BFCBD6",
+    "Lab": "#E0D4A8",
+    "GE": "#BFD8D1",
+    "AEC": "#D8C9D8",
+    "SEC": "#C8C8DF",
+    "DSE": "#D2C2B2",
+    "VAC": "#B4C9B1",
+    "Practical": "#CDD6D2",
+    "Other": "#E7E7E2"
+  }
+}

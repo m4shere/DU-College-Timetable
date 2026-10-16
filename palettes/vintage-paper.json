@@ -1,0 +1,31 @@
+{
+  "id": "vintage-paper",
+  "name": "Vintage Paper",
+  "mood": "aged paper, ink and terracotta",
+  "interface": {
+    "page": "#F2E8D7",
+    "surface": "#FFF9EE",
+    "surfaceAlt": "#E9D9C2",
+    "ink": "#392D24",
+    "muted": "#796655",
+    "line": "#D6C2A7",
+    "accent": "#B96045",
+    "accentInk": "#FFFFFF",
+    "header": "#382D25",
+    "headerInk": "#FFF7E9",
+    "highlight": "#D6A34C"
+  },
+  "categories": {
+    "Core": "#D8B7A0",
+    "Lecture": "#E7C2B9",
+    "Tutorial": "#BCC6B5",
+    "Lab": "#DABF74",
+    "GE": "#A9C4C2",
+    "AEC": "#C9A9BB",
+    "SEC": "#B9B8D2",
+    "DSE": "#E3D1AE",
+    "VAC": "#B5C5A8",
+    "Practical": "#C8A48A",
+    "Other": "#E6DAC8"
+  }
+}

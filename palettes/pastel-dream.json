@@ -1,0 +1,31 @@
+{
+  "id": "pastel-dream",
+  "name": "Pastel Dream",
+  "mood": "airy lilac, blue and peach",
+  "interface": {
+    "page": "#F5F4FC",
+    "surface": "#FFFFFF",
+    "surfaceAlt": "#EBE8F8",
+    "ink": "#2E2D49",
+    "muted": "#77758F",
+    "line": "#DCD8EF",
+    "accent": "#8B79D6",
+    "accentInk": "#FFFFFF",
+    "header": "#34304D",
+    "headerInk": "#FFFFFF",
+    "highlight": "#F4B9C9"
+  },
+  "categories": {
+    "Core": "#D7C8F4",
+    "Lecture": "#BFD8F4",
+    "Tutorial": "#F4D0D7",
+    "Lab": "#C5E5D8",
+    "GE": "#F4D9AB",
+    "AEC": "#C7D9E7",
+    "SEC": "#E4C5E9",
+    "DSE": "#D4D0FA",
+    "VAC": "#B7E2E7",
+    "Practical": "#E6D7C6",
+    "Other": "#E9E7F0"
+  }
+}

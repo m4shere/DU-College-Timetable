@@ -1,0 +1,31 @@
+{
+  "id": "citrus-club",
+  "name": "Citrus Club",
+  "mood": "bright citrus with soft cobalt",
+  "interface": {
+    "page": "#FFF7E5",
+    "surface": "#FFFEF7",
+    "surfaceAlt": "#F7E9BE",
+    "ink": "#302C22",
+    "muted": "#776B4F",
+    "line": "#E8D7A6",
+    "accent": "#D87A26",
+    "accentInk": "#FFFFFF",
+    "header": "#302C22",
+    "headerInk": "#FFF9E9",
+    "highlight": "#D8E84A"
+  },
+  "categories": {
+    "Core": "#DCE65E",
+    "Lecture": "#F2BE56",
+    "Tutorial": "#A4CFB1",
+    "Lab": "#8EC4DD",
+    "GE": "#F2A18A",
+    "AEC": "#C7B2E6",
+    "SEC": "#E4D2A2",
+    "DSE": "#8DB5C5",
+    "VAC": "#D7A6BD",
+    "Practical": "#C7D3A4",
+    "Other": "#E9E0CB"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "mono-red",
+  "name": "Monochrome Red",
+  "mood": "editorial red, blush and wine",
+  "interface": {
+    "page": "#F9EEEE",
+    "surface": "#FFFCFC",
+    "surfaceAlt": "#F2DADA",
+    "ink": "#3A2023",
+    "muted": "#805E61",
+    "line": "#E6C5C8",
+    "accent": "#B42D3A",
+    "accentInk": "#FFFFFF",
+    "header": "#3A2023",
+    "headerInk": "#FFF7F7",
+    "highlight": "#DF7A81"
+  },
+  "categories": {
+    "Core": "#E9A5AA",
+    "Lecture": "#D9858C",
+    "Tutorial": "#F0C4C5",
+    "Lab": "#BE626D",
+    "GE": "#DDA3B0",
+    "AEC": "#E6B5A1",
+    "SEC": "#C77B87",
+    "DSE": "#F2D6D4",
+    "VAC": "#A94C5A",
+    "Practical": "#D6A2A4",
+    "Other": "#E9DCDD"
+  }
+}

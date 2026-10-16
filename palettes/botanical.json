@@ -1,0 +1,31 @@
+{
+  "id": "botanical",
+  "name": "Botanical",
+  "mood": "sage, fern and natural greens",
+  "interface": {
+    "page": "#EEF2E9",
+    "surface": "#FCFFF9",
+    "surfaceAlt": "#E2EADB",
+    "ink": "#26372B",
+    "muted": "#657565",
+    "line": "#CFDACB",
+    "accent": "#5A8057",
+    "accentInk": "#FFFFFF",
+    "header": "#26372B",
+    "headerInk": "#F6FBF3",
+    "highlight": "#D5B76A"
+  },
+  "categories": {
+    "Core": "#BFD0A6",
+    "Lecture": "#E3C8B6",
+    "Tutorial": "#ABCDB5",
+    "Lab": "#E6D7A5",
+    "GE": "#A8D2CA",
+    "AEC": "#D4C2D9",
+    "SEC": "#C5D5E5",
+    "DSE": "#D8D1B6",
+    "VAC": "#AFC5A0",
+    "Practical": "#B8D8C9",
+    "Other": "#E0E6D9"
+  }
+}

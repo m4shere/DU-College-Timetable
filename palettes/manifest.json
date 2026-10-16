@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "palettes": [
+    {"id":"cute-muted","file":"cute-muted.json","name":"Cute & Muted","mood":"soft, warm, gentle"},
+    {"id":"retro-pop","file":"retro-pop.json","name":"Retro Pop","mood":"playful 70s colour and bold contrast"},
+    {"id":"vintage-paper","file":"vintage-paper.json","name":"Vintage Paper","mood":"aged paper, ink and terracotta"},
+    {"id":"soft-academia","file":"soft-academia.json","name":"Soft Academia","mood":"quiet library tones and olive greens"},
+    {"id":"pastel-dream","file":"pastel-dream.json","name":"Pastel Dream","mood":"airy lilac, blue and peach"},
+    {"id":"dark-academia","file":"dark-academia.json","name":"Dark Academia","mood":"deep forest, parchment and brass"},
+    {"id":"y2k","file":"y2k.json","name":"Y2K","mood":"electric lavender, icy blue and chrome"},
+    {"id":"minimal-neutral","file":"minimal-neutral.json","name":"Minimal Neutral","mood":"quiet stone and sharp typography"},
+    {"id":"botanical","file":"botanical.json","name":"Botanical","mood":"sage, fern and natural greens"},
+    {"id":"ocean-calm","file":"ocean-calm.json","name":"Ocean Calm","mood":"teal, sea glass and deep blue"},
+    {"id":"citrus-club","file":"citrus-club.json","name":"Citrus Club","mood":"bright citrus with soft cobalt"},
+    {"id":"mono-red","file":"mono-red.json","name":"Monochrome Red","mood":"editorial red, blush and wine"}
+  ]
+}

@@ -1,86 +1,108 @@
 # DU College Timetable Builder
 
-A mobile-friendly timetable builder designed for University of Delhi (DU) students. Create a timetable that fits your college's schedule, customize the colours, and keep track of tests, assignments, and practical-file deadlines.
-
-> **Live demo:** Add your deployed website URL here.  
-> **Suggestions and bug reports:** Open a GitHub Issue or use the creator contact links on the website.
+A mobile-first timetable builder for college students. Add your subjects and teachers once, schedule classes from dropdowns, choose a coordinated mood-based theme, and manage important reminders. This is a static website with no account or backend.
 
 ## Features
 
-- **Designed for mobile:** Quickly check the subject, room, teacher short form, and class category.
-- **Flexible schedules:** Configure the college's start time, slot length, and number of time slots. Supports morning, winter-shift, and evening schedules.
-- **Long classes and labs:** Classes can span multiple consecutive time slots.
-- **Useful class details:** Display a short subject code, room number, teacher abbreviation, and category; keep full subject/teacher details and extra notes available when opening or hovering over a class.
-- **Soft colour palettes:** Choose a palette for course categories, or customize class colours.
-- **Reminders:** Add dates, times, subjects, and notes for tests, assignment submissions, and practical files.
-- **Backup and restore:** Export your timetable and reminders to a JSON file and import that file later.
-- **Print-friendly:** Print or save a timetable as a PDF to share with classmates.
-- **Install/offline support:** The site includes a web app manifest and service worker for supported browsers after the site has loaded online.
+- **Quick class entry:** choose a saved subject, one or more teachers, day, time, duration and room. Full names and notes are optional.
+- **Reusable subject library:** keep subject abbreviations and optional full subject names. A subject can have several teachers, including labs shared by teachers.
+- **12 mood-based palettes:** Cute & Muted, Retro Pop, Vintage Paper, Soft Academia, Pastel Dream, Dark Academia, Y2K, Minimal Neutral, Botanical, Ocean Calm, Citrus Club and Monochrome Red.
+- **Modular palettes:** each palette is a JSON file in `palettes/`. Add a palette by creating another JSON file and adding its entry to `palettes/manifest.json`.
+- **Automatic recoloring:** selecting another theme recolors automatically themed classes already on the timetable. Manually chosen custom subject/class colors remain unchanged.
+- **Timetable editing:** edit a class with the pencil on its tile or add from an empty time slot/day plus button. Consecutive periods support long lectures and labs.
+- **Flexible times:** select start time, period length and number of periods. There are no redundant custom slot names.
+- **Save/share actions near the schedule:** local autosave, JSON backup/import, share the website, screenshot preview and print/save PDF.
+- **Reminders:** tests, assignments, practical files, presentations and other dated tasks.
+- **Offline support:** a service worker caches the static app after it has loaded successfully online.
+- **Data compatibility:** reads the existing `duCollegeTimetableBuilder.v2` local-storage key and current v2 backup structure, then adds a reusable subject/teacher library.
 
-## Getting started
+## Open locally
 
-1. Open the deployed website, or download/clone this repository.
-2. If running locally, open `index.html` in a modern browser. Some install/offline features require HTTPS or `localhost`.
-3. Set your college information, semester, and class timings.
-4. Add your subjects, room numbers, teacher details, categories, and class durations.
-5. Add reminders for important dates.
-6. Use **Download backup** after making important changes. To restore your data, open the site and use **Import backup** to select the saved JSON file.
+Because palettes are loaded from individual JSON files, don't open `index.html` directly as a `file://` URL. Use a simple local web server, for example:
 
-## Save and protect your timetable
+```bash
+python -m http.server 8000
+```
 
-This version stores timetable settings, classes, selected colours, and reminders in the browser on the current device. It does **not** upload your timetable to a server or sync it automatically between devices.
+Then open `http://localhost:8000` in your browser.
 
-- Export a JSON backup regularly, especially before changing devices or clearing browser data.
-- Keep the backup somewhere safe, such as your Files app or cloud drive.
-- To move your timetable to another device, open the same website there and import the JSON backup.
-- A PDF is useful for viewing and printing; a JSON file is the editable backup.
-- Reminders are shown when you open the website. This version does not send push notifications while the site is closed.
+## Deploy the full project
 
-## Privacy
+Upload the contents of this folder to the same website root used by the existing site. Keep `index.html` at the root and preserve the `palettes/` and `assets/` folders. This version has no build step or package installation.
 
-The static version is designed to keep timetable data in the user's browser. It does not require an account. Avoid adding sensitive personal information to class notes or reminders, especially on shared devices.
+**Important for an existing live site:** back up your GitHub repository first. Deploy all files together, especially `app.js`, `styles.css`, `palette-loader.js`, `palettes/manifest.json`, every palette JSON file and `sw.js`. The service-worker cache has a new version so it can replace the previous app shell.
 
-## Run or host the project
+The current published `contact-config.js` values have been retained. Replace them if needed before publishing.
 
-The project is a static website and does not require a build step.
+## Add a palette
 
-### Run locally
+1. Copy an existing JSON file from `palettes/` and give it a new filename, e.g. `soft-lilac.json`.
+2. Edit `id`, `name`, `mood`, `interface` and `categories`.
+3. Add one matching entry to `palettes/manifest.json`.
+4. Add the new JSON path to the `CORE_ASSETS` list in `sw.js` so the new palette is available offline, then deploy.
 
-Download or clone the repository and open `index.html`. For service-worker testing, run it from `localhost` or use an HTTPS deployment.
+Palette JSON format:
 
-### Deploy
+```json
+{
+  "id": "soft-lilac",
+  "name": "Soft Lilac",
+  "mood": "calm, cloudy and gentle",
+  "interface": {
+    "page": "#F5F2FB",
+    "surface": "#FFFFFF",
+    "surfaceAlt": "#EAE4F5",
+    "ink": "#2E293B",
+    "muted": "#716A80",
+    "line": "#D9D0EA",
+    "accent": "#9B83D5",
+    "accentInk": "#241A3A",
+    "header": "#302842",
+    "headerInk": "#FFFFFF",
+    "highlight": "#E8C6E8"
+  },
+  "categories": {
+    "Core": "#D7C8F4",
+    "Lecture": "#BFD8F4",
+    "Tutorial": "#F4D0D7",
+    "Lab": "#C5E5D8",
+    "GE": "#F4D9AB",
+    "AEC": "#C7D9E7",
+    "SEC": "#E4C5E9",
+    "DSE": "#D4D0FA",
+    "VAC": "#B7E2E7",
+    "Practical": "#E6D7C6",
+    "Other": "#E9E7F0"
+  }
+}
+```
 
-You can host the repository on a static hosting service such as GitHub Pages or Cloudflare Pages. Keep the project files and `assets` folder together, and make sure `index.html` is at the published site root (or the configured publishing directory).
+Keep names and category labels exactly as above, and use six-digit hex colors. The theme colors affect the interface and automatic subject/category fills. Students' manual subject or class overrides are not overwritten by a theme change.
 
-## Customize the project
+## Saving, privacy and backups
 
-- `index.html` — page structure and app shell
-- `styles.css` — layout, mobile styles, and visual design
-- `app.js` — timetable editing, reminders, rendering, and backup/import
-- `palettes.js` — course-category colour palettes
-- `contact-config.js` — creator email and social profile links
-- `assets/logo.svg` — replaceable logo
+- Timetable data, subjects, teachers, selected palette and reminders are stored in the browser's local storage. They are not uploaded to this project or synced between devices.
+- **Save backup** downloads a `.json` backup that can be imported later on another device.
+- **Save PDF** produces a print-oriented timetable with color preservation enabled. In the print dialog, enable background graphics if your browser has that setting.
+- A screenshot preview hides editing controls and is arranged for capturing/sharing the timetable.
+- Reminders are shown when the page is opened. This static version does not send push notifications after the page is closed.
+
+## Files
+
+- `index.html` — app structure, schedule, tabs and dialogs
+- `styles.css` — responsive interface, mobile schedule, preview and print styles
+- `app.js` — data model, migration, rendering, editing, reminders, backup and sharing
+- `palette-loader.js` — reads the palette manifest and palette JSON files
+- `palettes/manifest.json` — list of available palettes
+- `palettes/*.json` — one file per palette
+- `contact-config.js` — creator email and social links
+- `assets/` — app logo and replaceable contact icons
 - `manifest.webmanifest` and `sw.js` — install/offline support
 
-### Add your logo
+## Existing user data
 
-Replace `assets/logo.svg` with your own SVG logo, keeping the same filename. If you use a PNG or JPG instead, update the image references in `index.html` and the cached asset list in `sw.js`.
+The app keeps the previous `duCollegeTimetableBuilder.v2` storage key and reads the existing class/reminder fields. On the same origin and browser, the updated app should migrate the old data into its new subject library automatically. Still, download a JSON backup before deploying. Browser storage is origin-specific and cannot move from a local test URL to the production URL by itself.
 
-### Set creator contact links
+## Feedback
 
-Edit `contact-config.js` and enter your own details. Use a plain email address for the email field; use a social handle or full profile URL for Instagram and Reddit. Do not commit private contact information unless you intend it to be public.
-
-## Contributing
-
-Suggestions, accessibility improvements, bug reports, and pull requests are welcome. When reporting a bug, include:
-
-- What you expected to happen
-- What actually happened
-- Your device and browser
-- Steps to reproduce the issue
-
-Please do not include private timetable backups or personal information in public issues.
-
-## License
-
-No license has been specified yet. Unless a license is added to this repository, reuse and redistribution are not automatically granted. Add a license file if you want to define how others may use, modify, and share the project.
+Open a GitHub issue or use the contact links configured in `contact-config.js`. Don't attach a private timetable backup to a public issue.

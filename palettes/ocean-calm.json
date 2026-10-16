@@ -1,0 +1,31 @@
+{
+  "id": "ocean-calm",
+  "name": "Ocean Calm",
+  "mood": "teal, sea glass and deep blue",
+  "interface": {
+    "page": "#EAF4F5",
+    "surface": "#FCFFFF",
+    "surfaceAlt": "#DCEDEE",
+    "ink": "#18373B",
+    "muted": "#5E7B7D",
+    "line": "#C5DCDD",
+    "accent": "#2C858A",
+    "accentInk": "#FFFFFF",
+    "header": "#18373B",
+    "headerInk": "#F4FFFF",
+    "highlight": "#E8BD83"
+  },
+  "categories": {
+    "Core": "#B7D9D4",
+    "Lecture": "#BFD9EC",
+    "Tutorial": "#D3C8EA",
+    "Lab": "#E9D29F",
+    "GE": "#95C9C5",
+    "AEC": "#C5D8B6",
+    "SEC": "#D8BCD0",
+    "DSE": "#AFC5E5",
+    "VAC": "#E5BDAA",
+    "Practical": "#A9D4E4",
+    "Other": "#DFE9E8"
+  }
+}

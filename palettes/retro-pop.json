@@ -1,0 +1,31 @@
+{
+  "id": "retro-pop",
+  "name": "Retro Pop",
+  "mood": "playful 70s colour and bold contrast",
+  "interface": {
+    "page": "#F7EBDD",
+    "surface": "#FFF9EF",
+    "surfaceAlt": "#F0D9C4",
+    "ink": "#2B2525",
+    "muted": "#716056",
+    "line": "#D9BFA9",
+    "accent": "#E45B3D",
+    "accentInk": "#FFFFFF",
+    "header": "#2B2525",
+    "headerInk": "#FFF9EF",
+    "highlight": "#F4C845"
+  },
+  "categories": {
+    "Core": "#F4C845",
+    "Lecture": "#E56B54",
+    "Tutorial": "#7DA7A0",
+    "Lab": "#E7A7B8",
+    "GE": "#8A8DC1",
+    "AEC": "#F0AA61",
+    "SEC": "#AACB7B",
+    "DSE": "#D6A2CE",
+    "VAC": "#7FA6CC",
+    "Practical": "#B6B0A0",
+    "Other": "#E6D4C1"
+  }
+}

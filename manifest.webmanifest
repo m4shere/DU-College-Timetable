@@ -1,18 +1,13 @@
 {
   "name": "DU College Timetable Builder",
   "short_name": "DU Timetable",
-  "description": "Create a customizable college timetable with class details and dated reminders.",
-  "start_url": "./index.html",
+  "description": "A customizable college timetable, subject library and reminder planner.",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f6f2e9",
-  "theme_color": "#19261f",
+  "background_color": "#F8F1F4",
+  "theme_color": "#392A34",
   "icons": [
-    {
-      "src": "assets/logo.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
+    { "src": "assets/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]
 }

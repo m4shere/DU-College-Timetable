@@ -1,0 +1,31 @@
+{
+  "id": "soft-academia",
+  "name": "Soft Academia",
+  "mood": "quiet library tones and olive greens",
+  "interface": {
+    "page": "#F0EFE6",
+    "surface": "#FCFCF7",
+    "surfaceAlt": "#E5E5D8",
+    "ink": "#28342D",
+    "muted": "#69756A",
+    "line": "#D2D8C9",
+    "accent": "#718A63",
+    "accentInk": "#FFFFFF",
+    "header": "#28342D",
+    "headerInk": "#F8F8EF",
+    "highlight": "#D1B56A"
+  },
+  "categories": {
+    "Core": "#D6D9B9",
+    "Lecture": "#E2C7BD",
+    "Tutorial": "#C2D5C3",
+    "Lab": "#E6D7A9",
+    "GE": "#BDD4D2",
+    "AEC": "#D8C9DC",
+    "SEC": "#C4CEDD",
+    "DSE": "#D8D3B9",
+    "VAC": "#B9C8A4",
+    "Practical": "#C7D2CA",
+    "Other": "#E3E1D7"
+  }
+}

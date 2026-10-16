@@ -1,552 +1,197 @@
-
 (() => {
   'use strict';
-  const STORAGE_KEY = 'duCollegeTimetableBuilder.v2';
+  const STORAGE_KEY = 'duCollegeTimetableBuilder.v2'; // Keep the existing key so live users retain their local data.
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const CATEGORIES = ['Core','Lecture','Tutorial','Lab','GE','AEC','SEC','DSE','VAC','Practical','Other'];
-  const DEFAULT_PALETTE = 'paper';
+  const LEGACY_PALETTE = {paper:'vintage-paper',mint:'botanical',sky:'ocean-calm',rose:'cute-muted',lavender:'pastel-dream',sunset:'retro-pop',aqua:'ocean-calm',forest:'botanical'};
   const $ = id => document.getElementById(id);
-  let state = {
-    metadata:{collegeName:'',courseName:'',semester:'',shift:'Morning',studentName:''},
-    settings:{startTime:'08:00',periodMinutes:60,slotCount:11,palette:'paper'},
-    classes:[], reminders:[]
-  };
+  let state = defaultState();
   let editingClassId = null;
   let editingReminderId = null;
-  let nextClassId = 1;
-  let nextReminderId = 1;
+  let editingSubjectId = null;
+  let detailClassId = null;
+  let nextTeacherDialogSubjectId = null;
+  let idCounter = 1;
   let storageAvailable = true;
-  try {
-    const storageProbe = '__du_timetable_storage_test__';
-    localStorage.setItem(storageProbe, '1');
-    localStorage.removeItem(storageProbe);
-  } catch (error) { storageAvailable = false; }
 
-  function setStatus(id, message, error=false) {
-    const el = $(id); el.textContent = message; el.classList.toggle('error', error);
+  function defaultState() {
+    return {
+      metadata:{collegeName:'',courseName:'',semester:'',shift:'Morning',studentName:''},
+      settings:{startTime:'08:00',periodMinutes:60,slotCount:11,palette:'cute-muted'},
+      subjects:[], classes:[], reminders:[],
+      ui:{showSaturday:true,showSunday:false}
+    };
   }
-  function safeText(value) { return String(value ?? ''); }
-  function trimValue(id) { return $(id).value.trim(); }
-  function fmtTime(totalMinutes) {
-    let mins = ((Number(totalMinutes) % 1440) + 1440) % 1440;
-    let hour24 = Math.floor(mins / 60), minute = mins % 60;
-    const suffix = hour24 >= 12 ? 'PM' : 'AM';
-    const hour12 = hour24 % 12 || 12;
-    return `${hour12}:${String(minute).padStart(2,'0')} ${suffix}`;
-  }
-  function startMinutes() {
-    const parts = String(state.settings.startTime || '08:00').split(':').map(Number);
-    return (parts[0] || 0) * 60 + (parts[1] || 0);
-  }
-  function slotStart(index) { return startMinutes() + index * Number(state.settings.periodMinutes); }
-  function slotEnd(index) { return slotStart(index) + Number(state.settings.periodMinutes); }
-  function timeRange(start, duration) {
-    return `${fmtTime(slotStart(start))} – ${fmtTime(slotStart(start) + duration * Number(state.settings.periodMinutes))}`;
-  }
-  function slotHeading(index) { return `${fmtTime(slotStart(index))}–${fmtTime(slotEnd(index))}`; }
-  function compactClock(totalMinutes, showMeridiem=true) {
-    let mins=((Number(totalMinutes)%1440)+1440)%1440; const h24=Math.floor(mins/60), minute=mins%60;
-    const h12=h24%12||12, suffix=h24>=12?'PM':'AM';
-    const time=`${h12}${minute ? ':'+String(minute).padStart(2,'0') : ''}`;
-    return showMeridiem ? `${time} ${suffix}` : time;
-  }
-  function compactSlotHeading(index) {
-    const start=slotStart(index), end=slotEnd(index);
-    const startSuffix=start%1440>=720?'PM':'AM', endSuffix=end%1440>=720?'PM':'AM';
-    if(startSuffix===endSuffix) return `${compactClock(start,false)}–${compactClock(end,true)}`;
-    return `${compactClock(start,true)}–${compactClock(end,true)}`;
-  }
-  function durationLabel(slots) {
-    const total = slots * Number(state.settings.periodMinutes);
-    if (total % 60 === 0) {
-      const hours = total / 60;
-      return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
-    }
-    return `${slots} ${slots === 1 ? 'slot' : 'slots'} · ${total} min`;
-  }
-  function formatDate(dateString, options={weekday:'short',day:'numeric',month:'short',year:'numeric'}) {
-    if (!dateString) return 'No date';
-    const [y,m,d] = dateString.split('-').map(Number);
-    if (!y || !m || !d) return dateString;
-    return new Intl.DateTimeFormat('en-IN', options).format(new Date(y,m-1,d));
-  }
-  function localDateString(date=new Date()) {
-    const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');
-    return `${y}-${m}-${d}`;
-  }
-  function reminderTimestamp(item) {
-    return new Date(`${item.date}T${item.time || '23:59'}:00`).getTime();
-  }
-  function reminderStatus(item) {
-    if (item.done) return 'Completed';
-    const today = localDateString();
-    if (item.date < today) return 'Overdue';
-    if (item.date === today) return 'Today';
-    return 'Upcoming';
-  }
-  function categoryColor(category, paletteName=null) {
-    const name=paletteName || state.settings.palette || DEFAULT_PALETTE;
-    const palette=(window.DU_PALETTES && window.DU_PALETTES[name]) || (window.DU_PALETTES && window.DU_PALETTES[DEFAULT_PALETTE]);
-    return (palette && palette.colors && palette.colors[category]) || '#e9e7df';
-  }
-  function chosenColor(item) { return item.colour && item.colour !== 'auto' ? item.colour : categoryColor(item.category); }
-  function renderLegend() {
-    const holder=$('legend'); if(!holder) return;
-    holder.querySelectorAll('[data-category]').forEach(el=>{
-      el.style.backgroundColor=categoryColor(el.dataset.category);
-      el.style.color='#20211f';
-    });
-  }
-  function renderPalettePreview() {
-    const holder=$('palettePreview'); if(!holder || !$('palette')) return;
-    const paletteName=$('palette').value || DEFAULT_PALETTE;
-    holder.replaceChildren();
-    ['Core','Lecture','Tutorial','Lab','GE','AEC','SEC','DSE','VAC'].forEach(category=>{
-      const chip=document.createElement('span'); chip.className='palette-chip';
-      chip.style.backgroundColor=categoryColor(category,paletteName); chip.textContent=category;
-      holder.appendChild(chip);
-    });
-  }
-  function syncCustomColourVisibility() {
-    const wrap=$('customColourWrap'); if(wrap) wrap.hidden=$('colour').value!=='custom';
-  }
+  function uid(prefix='id'){return `${prefix}-${Date.now().toString(36)}-${(idCounter++).toString(36)}`;}
+  function text(value){return String(value ?? '').trim();}
+  function slug(value){return String(value||'other').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'other';}
+  function validHex(value){return /^#[0-9a-f]{6}$/i.test(String(value||''));}
+  function paletteId(value){return LEGACY_PALETTE[value] || value;}
+  function setStatus(id,message,error=false){const el=$(id);if(!el)return;el.textContent=message;el.classList.toggle('error',error);}
+  function localDateString(date=new Date()){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');return `${y}-${m}-${d}`;}
+  function fmtTime(totalMinutes, compact=false){const mins=((Number(totalMinutes)%1440)+1440)%1440;const h24=Math.floor(mins/60),m=mins%60,suffix=h24>=12?'PM':'AM',hour=h24%12||12;return `${hour}:${String(m).padStart(2,'0')}${compact?'\u00a0':' '}${suffix}`;}
+  function minutesFromTime(value){const [h,m]=String(value||'08:00').split(':').map(Number);return (h||0)*60+(m||0);}
+  function slotStart(index){return minutesFromTime(state.settings.startTime)+index*Number(state.settings.periodMinutes);}
+  function slotEnd(index){return slotStart(index)+Number(state.settings.periodMinutes);}
+  function timeRange(start,duration){return `${fmtTime(slotStart(start),true)} – ${fmtTime(slotStart(start+duration),true)}`;}
+  function dateLabel(date){if(!date)return '';const d=new Date(`${date}T12:00:00`);if(Number.isNaN(d.getTime()))return date;return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});}
+  function byDate(a,b){return `${a.date||''} ${a.time||'23:59'}`.localeCompare(`${b.date||''} ${b.time||'23:59'}`);}
+  function inferInitials(name){const words=text(name).split(/\s+/).filter(Boolean);return words.slice(0,3).map(w=>w[0].toUpperCase()).join('');}
+  function getTeacherLabel(teacher){return teacher ? (teacher.initials || teacher.name || 'Teacher') : '';}
 
-  function persist() {
-    if (!storageAvailable) {
-      $('settingsStatus').textContent = 'Browser storage is unavailable here. Download a backup to keep your work.';
-      return;
-    }
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      $('settingsStatus').textContent = 'Auto-saved in this browser.';
-    } catch (error) {
-      $('settingsStatus').textContent = 'Auto-save failed in this browser. Download a backup to keep your work.';
-    }
-  }
-  function loadSaved() {
-    if (!storageAvailable) return false;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return false;
-      const parsed = JSON.parse(raw);
-      if (!parsed || !Array.isArray(parsed.classes)) return false;
-      state = normalizeState(parsed);
-      return true;
-    } catch (error) { return false; }
-  }
-  function normalizeState(parsed) {
-    const oldClasses = Array.isArray(parsed.classes) ? parsed.classes : [];
-    const normalizedClasses = oldClasses.map((item,i) => ({
-      id:Number.isFinite(Number(item.id)) ? Number(item.id) : i+1,
-      day:DAYS.includes(item.day) ? item.day : 'Monday',
-      start:Number(item.start), duration:Number(item.duration),
-      short:safeText(item.short), room:safeText(item.room),
-      teacherShort:safeText(item.teacherShort), category:safeText(item.category || 'Other'),
-      fullSubject:safeText(item.fullSubject), teacherFull:safeText(item.teacherFull),
-      extra:safeText(item.extra), colour:safeText(item.colour || 'auto')
+  function normalizeState(parsed){
+    const base=defaultState();
+    const meta=parsed && parsed.metadata ? parsed.metadata : {};
+    const settings=parsed && parsed.settings ? parsed.settings : {};
+    const chosen=paletteId(settings.palette||base.settings.palette);
+    base.metadata={collegeName:text(meta.collegeName),courseName:text(meta.courseName),semester:text(meta.semester),shift:text(meta.shift||'Morning'),studentName:text(meta.studentName)};
+    base.settings={startTime:/^\d{2}:\d{2}$/.test(settings.startTime||'')?settings.startTime:base.settings.startTime,periodMinutes:clampNumber(settings.periodMinutes,30,90,60),slotCount:clampNumber(settings.slotCount,6,15,11),palette:chosen};
+    base.ui={showSaturday:parsed?.ui?.showSaturday ?? true,showSunday:parsed?.ui?.showSunday ?? false};
+    const rawClasses=Array.isArray(parsed?.classes)?parsed.classes:[];
+    const rawReminders=Array.isArray(parsed?.reminders)?parsed.reminders:[];
+    let subjects=Array.isArray(parsed?.subjects)?parsed.subjects.map((s,i)=>({
+      id:text(s.id)||uid('subject'),short:text(s.short||s.code),fullName:text(s.fullName||s.fullSubject),category:CATEGORIES.includes(s.category)?s.category:'Other',
+      colorMode:s.colorMode==='custom'?'custom':'palette',customColor:validHex(s.customColor)?s.customColor:'#E8B7CB',
+      teachers:Array.isArray(s.teachers)?s.teachers.map(t=>({id:text(t.id)||uid('teacher'),initials:text(t.initials||t.short||inferInitials(t.name)),name:text(t.name||t.teacherFull)})).filter(t=>t.initials||t.name):[]
+    })).filter(s=>s.short):[];
+    const classes=rawClasses.map((item,i)=>({
+      id:Number.isFinite(Number(item.id))?Number(item.id):i+1, day:DAYS.includes(item.day)?item.day:'Monday',
+      start:clampNumber(item.start,0,14,0),duration:clampNumber(item.duration,1,4,1),
+      short:text(item.short||item.subjectShort),room:text(item.room),teacherShort:text(item.teacherShort),category:CATEGORIES.includes(item.category)?item.category:'Other',
+      fullSubject:text(item.fullSubject||item.subject),teacherFull:text(item.teacherFull),extra:text(item.extra),
+      colour:text(item.colour||'auto'),customColour:validHex(item.customColour)?item.customColour:(validHex(item.customColor)?item.customColor:(validHex(item.classCustomColor)?item.classCustomColor:'')),
+      subjectId:text(item.subjectId),teacherIds:Array.isArray(item.teacherIds)?item.teacherIds.map(String):[]
     }));
-    const incomingSettings = parsed.settings || {};
-    const settings = {
-      startTime:/^\d{2}:\d{2}$/.test(incomingSettings.startTime || '') ? incomingSettings.startTime : '08:00',
-      periodMinutes:[30,45,50,60,75,90].includes(Number(incomingSettings.periodMinutes)) ? Number(incomingSettings.periodMinutes) : 60,
-      slotCount:Math.max(6,Math.min(14,Number(incomingSettings.slotCount) || 11)),
-      palette:(window.DU_PALETTES && window.DU_PALETTES[incomingSettings.palette]) ? incomingSettings.palette : DEFAULT_PALETTE
-    };
-    const maxRequired = normalizedClasses.reduce((n,item) => Math.max(n, Number(item.start||0)+Number(item.duration||0)), 6);
-    settings.slotCount = Math.min(14,Math.max(settings.slotCount,maxRequired));
-    const meta = parsed.metadata || {};
-    const reminders = Array.isArray(parsed.reminders) ? parsed.reminders.map((item,i) => ({
-      id:Number.isFinite(Number(item.id)) ? Number(item.id) : i+1,
-      title:safeText(item.title), date:safeText(item.date), time:safeText(item.time),
-      subject:safeText(item.subject), type:safeText(item.type || 'Other'), notes:safeText(item.notes), done:Boolean(item.done)
-    })).filter(item => item.date && item.title) : [];
-    return {
-      metadata:{collegeName:safeText(meta.collegeName),courseName:safeText(meta.courseName),semester:safeText(meta.semester),shift:safeText(meta.shift || 'Morning'),studentName:safeText(meta.studentName)},
-      settings, classes:normalizedClasses, reminders
-    };
-  }
-
-  function fillMetadataForm() {
-    $('collegeName').value=state.metadata.collegeName;
-    $('courseName').value=state.metadata.courseName;
-    $('semester').value=state.metadata.semester;
-    $('shift').value=state.metadata.shift || 'Morning';
-    $('studentName').value=state.metadata.studentName;
-    $('startTime').value=state.settings.startTime;
-    $('periodMinutes').value=String(state.settings.periodMinutes);
-    $('slotCount').value=String(state.settings.slotCount);
-    $('palette').value=state.settings.palette || DEFAULT_PALETTE;
-    renderPalettePreview();
-  }
-  function updateSettingsFromForm() {
-    const newSettings = {
-      startTime:$('startTime').value || '08:00',
-      periodMinutes:Number($('periodMinutes').value),
-      slotCount:Number($('slotCount').value),
-      palette: (window.DU_PALETTES && window.DU_PALETTES[$('palette').value]) ? $('palette').value : DEFAULT_PALETTE
-    };
-    const maxRequired = state.classes.reduce((max,item) => Math.max(max,item.start+item.duration),0);
-    if (newSettings.slotCount < maxRequired) {
-      setStatus('settingsStatus',`At least ${maxRequired} slots are needed for your existing classes. Remove or move the late class before shortening the day.`,true);
-      $('slotCount').value=String(state.settings.slotCount);
-      return false;
-    }
-    state.settings=newSettings;
-    state.metadata={
-      collegeName:trimValue('collegeName'),courseName:trimValue('courseName'),semester:$('semester').value,
-      shift:$('shift').value,studentName:trimValue('studentName')
-    };
-    updateClassStartOptions();
-    updateDurationOptions();
-    renderAll(); persist();
-    setStatus('settingsStatus','Timetable details and class timings updated.');
-    return true;
-  }
-
-  function updateClassStartOptions(selectedValue=null) {
-    const select=$('classStart');
-    const oldValue=selectedValue === null ? Number(select.value || 0) : Number(selectedValue);
-    select.replaceChildren();
-    for (let i=0;i<state.settings.slotCount;i++) {
-      const opt=document.createElement('option'); opt.value=String(i); opt.textContent=`${slotHeading(i)} · Slot ${i+1}`;
-      select.appendChild(opt);
-    }
-    select.value=String(Math.min(Math.max(0,oldValue),state.settings.slotCount-1));
-  }
-  function updateDurationOptions(selectedValue=null) {
-    const select=$('duration');
-    const old=selectedValue===null ? Number(select.value || 1) : Number(selectedValue);
-    const remaining=state.settings.slotCount-Number($('classStart').value||0);
-    select.replaceChildren();
-    for(let n=1;n<=Math.min(remaining,5);n++) {
-      const option=document.createElement('option'); option.value=String(n);
-      option.textContent=`${n} ${n===1?'slot':'slots'} · ${durationLabel(n)}`;
-      select.appendChild(option);
-    }
-    select.value=String(Math.min(Math.max(1,old),Math.min(remaining,5)));
-    $('durationHint').textContent=`One slot = ${state.settings.periodMinutes} minutes. This timetable has ${state.settings.slotCount} slots per day.`;
-  }
-  function getClassFormData() {
-    return {
-      id:editingClassId===null ? nextClassId++ : editingClassId,
-      day:$('classDay').value,start:Number($('classStart').value),duration:Number($('duration').value),
-      short:trimValue('short'),room:trimValue('room'),teacherShort:trimValue('teacherShort'),category:$('category').value,
-      fullSubject:trimValue('fullSubject'),teacherFull:trimValue('teacherFull'),extra:trimValue('extra'),colour:$('colour').value==='custom' ? $('customColour').value : 'auto'
-    };
-  }
-  function resetClassForm() {
-    $('classForm').reset(); editingClassId=null;
-    $('classFormHeading').textContent='Add a class'; $('saveClass').textContent='Add class'; $('cancelClassEdit').hidden=true;
-    $('classStart').value='0'; updateDurationOptions(1); syncCustomColourVisibility();
-  }
-  function classDetails(item) {
-    return [
-      ['Subject',item.fullSubject || item.short],['Short form',item.short],['Teacher',item.teacherFull || item.teacherShort],
-      ['Teacher initials',item.teacherShort],['Room',item.room],['Category',item.category],['Day',item.day],
-      ['Time',timeRange(item.start,item.duration)],['Duration',durationLabel(item.duration)],['Extra information',item.extra]
-    ].filter(pair => pair[1] !== undefined && pair[1] !== null && String(pair[1]).trim() !== '');
-  }
-  function openDetails(title, pairs) {
-    $('dialogTitle').textContent=title;
-    const holder=$('dialogLines'); holder.replaceChildren();
-    pairs.forEach(([label,value])=>{
-      const row=document.createElement('div'); row.className='detail-line';
-      const strong=document.createElement('strong'); strong.textContent=label;
-      const span=document.createElement('span'); span.textContent=String(value);
-      row.append(strong,span); holder.appendChild(row);
-    });
-    const dlg=$('detailDialog');
-    if (typeof dlg.showModal==='function') dlg.showModal(); else alert(pairs.map(p=>p[0]+': '+p[1]).join('\n'));
-  }
-  function makeClassButton(item, mobile=false) {
-    const card=document.createElement('button'); card.type='button';
-    card.className=mobile?'mobile-class-card':'class-card'; card.style.backgroundColor=chosenColor(item);
-    const detailText=classDetails(item).map(([k,v])=>`${k}: ${v}`).join('\n'); card.title=detailText;
-    card.setAttribute('aria-label',`${item.short}. ${detailText.replace(/\n/g,'. ')}`);
-    const short=document.createElement('span'); short.className='subject-short'; short.textContent=item.short || 'Subject';
-    const shortLength=String(item.short||'').trim().length;
-    if(shortLength<=4) short.classList.add('short-xs'); else if(shortLength<=7) short.classList.add('short-sm'); else if(shortLength<=10) short.classList.add('short-md'); else short.classList.add('short-long');
-    card.appendChild(short);
-    if(item.room){const room=document.createElement('span');room.className='room';room.textContent=`Room ${item.room}`;card.appendChild(room);}
-    if(item.teacherShort){const t=document.createElement('span');t.className='teacher-short';t.textContent=item.teacherShort;card.appendChild(t);}
-    const cat=document.createElement('span');cat.className='category';cat.textContent=item.category;card.appendChild(cat);
-    card.addEventListener('click',()=>openDetails(item.fullSubject||item.short,classDetails(item)));
-    return card;
-  }
-  function visibleDays() {
-    return DAYS.filter(day => day!=='Saturday' || $('showSaturday').checked).filter(day => day!=='Sunday' || $('showSunday').checked);
-  }
-  function renderDesktopTable() {
-    const header=$('timeHeader'); header.replaceChildren();
-    const dayTh=document.createElement('th');dayTh.textContent='Day';header.appendChild(dayTh);
-    for(let i=0;i<state.settings.slotCount;i++){const th=document.createElement('th');th.className='time-head';th.textContent=compactSlotHeading(i);th.title=slotHeading(i);header.appendChild(th);}
-    const body=$('tableBody');body.replaceChildren();
-    visibleDays().forEach(day=>{
-      const tr=document.createElement('tr');const dayCell=document.createElement('th');dayCell.className='day';dayCell.scope='row';dayCell.textContent=day;tr.appendChild(dayCell);
-      const dayClasses=state.classes.filter(x=>x.day===day).sort((a,b)=>a.start-b.start);
-      const byStart=new Map(dayClasses.map(x=>[x.start,x]));let slot=0;
-      while(slot<state.settings.slotCount){
-        const item=byStart.get(slot);
-        if(item && item.start+item.duration<=state.settings.slotCount){
-          const td=document.createElement('td');td.className='slot';td.colSpan=item.duration;td.appendChild(makeClassButton(item,false));tr.appendChild(td);slot+=item.duration;
-        }else{
-          const td=document.createElement('td');td.className='slot empty-cell';td.textContent='—';tr.appendChild(td);slot++;
-        }
+    // Migrate current v2 data into a reusable subject/teacher library, without replacing its classes.
+    const findSubject=(short,category)=>subjects.find(s=>s.short.toLowerCase()===text(short).toLowerCase() && s.category===(category||'Other')) || subjects.find(s=>s.short.toLowerCase()===text(short).toLowerCase());
+    classes.forEach(cls=>{
+      let subject=subjects.find(s=>s.id===cls.subjectId) || findSubject(cls.short,cls.category);
+      if(!subject){subject={id:uid('subject'),short:cls.short||'SUBJECT',fullName:cls.fullSubject,category:cls.category,colorMode:'palette',customColor:'#E8B7CB',teachers:[]};subjects.push(subject);}
+      if(!subject.fullName && cls.fullSubject)subject.fullName=cls.fullSubject;
+      if(!subject.teachers)subject.teachers=[];
+      if(cls.teacherIds.length===0 && (cls.teacherShort||cls.teacherFull)){
+        const found=subject.teachers.find(t=>t.initials.toLowerCase()===cls.teacherShort.toLowerCase() && t.name.toLowerCase()===cls.teacherFull.toLowerCase());
+        const teacher=found||{id:uid('teacher'),initials:cls.teacherShort||inferInitials(cls.teacherFull),name:cls.teacherFull};
+        if(!found)subject.teachers.push(teacher);cls.teacherIds=[teacher.id];
       }
-      body.appendChild(tr);
+      cls.subjectId=subject.id;
+      if(cls.teacherIds.length){const ts=cls.teacherIds.map(id=>subject.teachers.find(t=>t.id===id)).filter(Boolean);if(ts.length){cls.teacherShort=ts.map(t=>t.initials).filter(Boolean).join(' / ');cls.teacherFull=ts.map(t=>t.name).filter(Boolean).join(', ');}}
     });
+    const reminders=rawReminders.map((item,i)=>({id:Number.isFinite(Number(item.id))?Number(item.id):i+1,title:text(item.title),date:text(item.date),time:text(item.time),subject:text(item.subject),type:text(item.type||'Other'),notes:text(item.notes),done:Boolean(item.done)})).filter(r=>r.title&&r.date);
+    if(!window.DU_PALETTES?.[base.settings.palette])base.settings.palette='cute-muted';
+    return {...base,subjects,classes,reminders};
   }
-  function renderMobileSchedule() {
-    const holder=$('mobileSchedule');holder.replaceChildren();
-    visibleDays().forEach(day=>{
-      const section=document.createElement('section');section.className='mobile-day';
-      const heading=document.createElement('div');heading.className='mobile-day-heading';
-      const title=document.createElement('span');title.textContent=day;
-      const count=state.classes.filter(item=>item.day===day).length;
-      const countEl=document.createElement('small');countEl.textContent=count===1?'1 class':`${count} classes`;heading.append(title,countEl);section.appendChild(heading);
-      const dayClasses=state.classes.filter(item=>item.day===day).sort((a,b)=>a.start-b.start);
-      if(!dayClasses.length){const empty=document.createElement('div');empty.className='mobile-empty';empty.textContent='No classes scheduled';section.appendChild(empty);}
-      dayClasses.forEach(item=>{
-        const row=document.createElement('div');row.className='mobile-class';
-        const time=document.createElement('div');time.className='mobile-time';
-        const startTime=document.createElement('span');startTime.className='time-part';startTime.textContent=fmtTime(slotStart(item.start)).replace(' ','\u00a0');
-        const divider=document.createElement('span');divider.className='time-divider';divider.textContent='to';
-        const endTime=document.createElement('span');endTime.className='time-part';endTime.textContent=fmtTime(slotStart(item.start+item.duration)).replace(' ','\u00a0');
-        const duration=document.createElement('small');duration.textContent=durationLabel(item.duration);
-        time.append(startTime,divider,endTime,duration);
-        row.append(time,makeClassButton(item,true));section.appendChild(row);
-      });
-      holder.appendChild(section);
-    });
-  }
-  function renderClassList() {
-    const holder=$('classList');holder.replaceChildren();$('classCount').textContent=`${state.classes.length} ${state.classes.length===1?'class':'classes'}`;
-    if(!state.classes.length){const p=document.createElement('p');p.className='hint';p.textContent='Nothing added yet. Add your first class using the form above.';holder.appendChild(p);return;}
-    [...state.classes].sort((a,b)=>DAYS.indexOf(a.day)-DAYS.indexOf(b.day)||a.start-b.start).forEach(item=>{
-      const row=document.createElement('div');row.className='entry';const info=document.createElement('div');info.className='entry-info';
-      const strong=document.createElement('strong');strong.textContent=`${item.day} · ${item.short}`;
-      const small=document.createElement('small');small.textContent=`${timeRange(item.start,item.duration)} · ${item.category}${item.room?' · Room '+item.room:''}`;info.append(strong,small);
-      const actions=document.createElement('div');actions.className='entry-actions';
-      const edit=document.createElement('button');edit.type='button';edit.className='secondary small';edit.textContent='Edit';edit.addEventListener('click',()=>editClass(item.id));
-      const del=document.createElement('button');del.type='button';del.className='danger small';del.textContent='Delete';del.addEventListener('click',()=>{
-        state.classes=state.classes.filter(x=>x.id!==item.id);if(editingClassId===item.id)resetClassForm();renderAll();persist();setStatus('classStatus','Class deleted.');
-      });
-      actions.append(edit,del);row.append(info,actions);holder.appendChild(row);
-    });
-  }
-  function editClass(id) {
-    const item=state.classes.find(x=>x.id===id);if(!item)return;editingClassId=id;
-    $('classDay').value=item.day;updateClassStartOptions(item.start);$('classStart').value=String(item.start);updateDurationOptions(item.duration);
-    ['short','room','teacherShort','category','fullSubject','teacherFull','extra'].forEach(key=>$(key).value=item[key]??'');
-    if(item.colour && item.colour!=='auto') { $('colour').value='custom'; $('customColour').value=/^#[0-9a-f]{6}$/i.test(item.colour)?item.colour:'#e5e9d8'; }
-    else { $('colour').value='auto'; }
-    syncCustomColourVisibility();
-    $('classFormHeading').textContent='Edit class';$('saveClass').textContent='Save changes';$('cancelClassEdit').hidden=false;setStatus('classStatus',`Editing ${item.short}.`);
-    $('classFormHeading').scrollIntoView({behavior:'smooth',block:'center'});
-  }
-  function hasOverlap(candidate,ignoreId=null) {
-    const start=candidate.start,end=start+candidate.duration;
-    return state.classes.some(existing=>existing.id!==ignoreId&&existing.day===candidate.day&&start<existing.start+existing.duration&&existing.start<end);
-  }
-  function renderMetadata() {
-    const m=state.metadata;
-    $('displayTitle').textContent=m.collegeName?m.collegeName:'My College Timetable';
-    const pieces=[m.courseName,m.semester,m.shift?`${m.shift} college`: '',m.studentName?`For ${m.studentName}`:''].filter(Boolean);
-    $('displayMeta').textContent=pieces.join(' · ') || 'Add your course and semester in the editor.';
-    const end=fmtTime(startMinutes()+state.settings.slotCount*state.settings.periodMinutes);
-    $('displayTiming').textContent=`${fmtTime(startMinutes())} – ${end} · ${state.settings.slotCount} slots · ${state.settings.periodMinutes}-minute periods`;
-    document.title=(m.collegeName?m.collegeName+' · ':'')+'DU College Timetable Builder';
+  function clampNumber(value,min,max,fallback){const n=Number(value);return Number.isFinite(n)?Math.max(min,Math.min(max,n)):fallback;}
+
+  try{const key='__du_timetable_storage_test__';localStorage.setItem(key,'1');localStorage.removeItem(key);}catch(_){storageAvailable=false;}
+  function persist(){if(!storageAvailable){setStatus('saveStatus','Browser storage is unavailable here. Download a JSON backup to keep your work.',true);return;}try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));const s=$('saveStatus');if(s)s.innerHTML='<span class="save-check">✓</span><span><strong>Autosaved on this device</strong><small>Your timetable stays in this browser. Save a JSON backup to move it to another device.</small></span><button type="button" id="quickBackupBtn" class="text-button">Back up</button>';const btn=$('quickBackupBtn');if(btn)btn.addEventListener('click',exportBackup);}catch(error){setStatus('saveStatus','Autosave failed. Please download a JSON backup.',true);}}
+  function loadSaved(){if(!storageAvailable)return false;try{const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return false;const parsed=JSON.parse(raw);if(!parsed||!Array.isArray(parsed.classes))return false;state=normalizeState(parsed);return true;}catch(_){return false;}}
+
+  function currentPalette(){return window.DU_PALETTES?.[state.settings.palette]||window.DU_PALETTES?.['cute-muted'];}
+  function applyPalette(){const p=currentPalette();if(!p)return;const root=document.documentElement;Object.entries(p.interface||{}).forEach(([key,value])=>root.style.setProperty('--'+key, value));Object.entries(p.categories||{}).forEach(([category,value])=>root.style.setProperty('--cat-'+slug(category),value));const meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.content=p.interface.header||'#392A34';}
+  function categoryColor(category){const p=currentPalette();return p?.categories?.[category]||p?.categories?.Other||'#E9E4E7';}
+  function subjectColor(subject){if(subject?.colorMode==='custom'&&validHex(subject.customColor))return subject.customColor;return categoryColor(subject?.category||'Other');}
+  function chosenColor(item){if(item?.colour==='custom'&&validHex(item.customColour))return item.customColour; if(validHex(item?.colour))return item.colour; const s=state.subjects.find(x=>x.id===item?.subjectId);return subjectColor(s)||categoryColor(item?.category||'Other');}
+  function contrastColor(hex){if(!validHex(hex))return '#202020';const channels=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255).map(c=>c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4));const luminance=.2126*channels[0]+.7152*channels[1]+.0722*channels[2];return luminance>.42?'#202020':'#FFFFFF';}
+  function applyThemeChoice(value){const id=paletteId(value);if(window.DU_PALETTES?.[id])state.settings.palette=id;applyPalette();persist();renderPaletteSwatches();renderAll();}
+
+  function fillMetadataForm(){const m=state.metadata,s=state.settings;['collegeName','courseName','semester','shift','studentName'].forEach(id=>{if($(id))$(id).value=m[id]||'';});$('startTime').value=s.startTime;$('periodMinutes').value=String(s.periodMinutes);$('slotCount').value=String(s.slotCount);$('paletteSelect').value=s.palette;$('settingsPalette').value=s.palette;renderPaletteSwatches();}
+  function readMetadataForm(){state.metadata={collegeName:text($('collegeName').value),courseName:text($('courseName').value),semester:text($('semester').value),shift:text($('shift').value||'Morning'),studentName:text($('studentName').value)};}
+  function renderMetadata(){const m=state.metadata;const title=m.studentName?`${m.studentName}'s Timetable`:'My College Timetable';$('displayTitle').textContent=title;const hasIdentity=Boolean(m.collegeName||m.courseName||m.semester);$('displayMeta').textContent=[m.collegeName,m.courseName,m.semester,hasIdentity&&m.shift&&m.shift!=='Other'?m.shift+' shift':''].filter(Boolean).join(' · ')||'Set your college details in Setup once.';$('displayTiming').textContent=`${fmtTime(minutesFromTime(state.settings.startTime),true)} first period · ${state.settings.periodMinutes}-minute slots · ${state.settings.slotCount} periods per day`;$('classStat').textContent=state.classes.length;$('subjectStat').textContent=state.subjects.length;$('reminderStat').textContent=state.reminders.filter(r=>!r.done).length;$('footerYear').textContent=new Date().getFullYear();$('previewCollege').textContent=m.collegeName||'COLLEGE TIMETABLE';$('previewTitle').textContent=title;$('previewMeta').textContent=[m.courseName,m.semester,m.studentName].filter(Boolean).join(' · ')||'Weekly class schedule';$('previewTiming').textContent=`${fmtTime(minutesFromTime(state.settings.startTime),true)} start · ${state.settings.periodMinutes}-minute periods`;}
+
+  function buildPaletteOptions(){const list=window.DU_PALETTE_MANIFEST||[];const selects=[$('paletteSelect'),$('settingsPalette')];selects.forEach(select=>{const selected=state.settings.palette;select.replaceChildren();list.forEach(item=>{const option=document.createElement('option');option.value=item.id;option.textContent=item.name;select.append(option);});if(!list.some(p=>p.id===selected)){const option=document.createElement('option');option.value=selected;option.textContent=window.DU_PALETTES?.[selected]?.name||selected;select.append(option);}select.value=selected;});renderPaletteSwatches();}
+  function renderPaletteSwatches(){const holder=$('paletteSwatches');if(!holder)return;holder.replaceChildren();const p=currentPalette();Object.entries(p?.categories||{}).slice(0,11).forEach(([name,color])=>{const sw=document.createElement('span');sw.className='palette-swatch';sw.style.backgroundColor=color;sw.title=`${name}: ${color}`;sw.setAttribute('aria-label',`${name} ${color}`);holder.append(sw);});}
+  function renderLegend(intoId='legend'){const holder=$(intoId);if(!holder)return;holder.replaceChildren();CATEGORIES.forEach(category=>{const chip=document.createElement('span');chip.className='legend-chip';const dot=document.createElement('i');dot.className='legend-dot';dot.style.backgroundColor=categoryColor(category);const label=document.createElement('span');label.textContent=category;chip.append(dot,label);holder.append(chip);});}
+
+  function updateTimeOptions(preserve=true){const select=$('classStart');const previous=preserve?Number(select.value||0):0;select.replaceChildren();for(let i=0;i<state.settings.slotCount;i++){const option=document.createElement('option');option.value=String(i);option.textContent=`${fmtTime(slotStart(i),true)} – ${fmtTime(slotEnd(i),true)}`;select.append(option);}select.value=String(Math.min(previous,state.settings.slotCount-1));updateDurationOptions(Number($('duration').value||1));}
+  function updateDurationOptions(selected=1){const duration=$('duration');if(!duration)return;const start=Math.max(0,Number($('classStart').value||0));duration.replaceChildren();for(let n=1;n<=Math.min(4,Math.max(1,state.settings.slotCount-start));n++){const option=document.createElement('option');option.value=String(n);option.textContent=n===1?'1 slot':`${n} slots · ${n*Number(state.settings.periodMinutes)} min`;duration.append(option);}duration.value=String(Math.min(selected,Number(duration.options[duration.options.length-1]?.value||1)));}
+  function fillTeacherPicker(subjectId, selectedIds=[]){const holder=$('teacherPicker');holder.replaceChildren();const subject=state.subjects.find(s=>s.id===subjectId);if(!subject){const p=document.createElement('p');p.className='muted-empty';p.textContent='Choose a subject to see its teachers.';holder.append(p);return;}if(!subject.teachers.length){const p=document.createElement('p');p.className='muted-empty';p.textContent='No teachers saved for this subject yet. You can add the class without a teacher or add teachers in Subjects & teachers.';holder.append(p);return;}subject.teachers.forEach(teacher=>{const label=document.createElement('label');label.className='teacher-choice';const cb=document.createElement('input');cb.type='checkbox';cb.name='selectedTeacher';cb.value=teacher.id;cb.checked=selectedIds.includes(teacher.id);const span=document.createElement('span');span.textContent=teacher.name?`${teacher.initials} · ${teacher.name}`:teacher.initials;label.append(cb,span);holder.append(label);});}
+  function fillSubjectSelect(selected=''){const select=$('subjectSelect');select.replaceChildren();const place=document.createElement('option');place.value='';place.textContent=state.subjects.length?'Choose a saved subject…':'No subjects yet — add one in Subjects & teachers';select.append(place);state.subjects.slice().sort((a,b)=>a.short.localeCompare(b.short)).forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=`${s.short} · ${s.category}`;select.append(o);});const add=document.createElement('option');add.value='__add_subject__';add.textContent='＋ Add a new subject…';select.append(add);select.value=state.subjects.some(s=>s.id===selected)?selected:'';fillTeacherPicker(select.value,selectedTeacherIdsFromForm());}
+  function selectedTeacherIdsFromForm(){return [...document.querySelectorAll('#teacherPicker input[name="selectedTeacher"]:checked')].map(el=>el.value);}
+  function fillReminderSubjectList(){const list=$('subjectNames');list.replaceChildren();state.subjects.forEach(s=>{const opt=document.createElement('option');opt.value=s.short;list.append(opt);if(s.fullName){const opt2=document.createElement('option');opt2.value=s.fullName;list.append(opt2);}});}
+
+  function makeButton(label,cls,handler,title){const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=label;if(title){b.title=title;b.setAttribute('aria-label',title);}b.addEventListener('click',handler);return b;}
+  function tileForClass(item,interactive=true){const color=chosenColor(item),ink=contrastColor(color),tile=document.createElement('div');tile.className='class-tile'+(item.duration>=2?' is-long':'');tile.style.backgroundColor=color;tile.style.color=ink;tile.dataset.classId=String(item.id);
+    const main=document.createElement('button');main.type='button';main.className='class-main';main.style.color=ink;main.setAttribute('aria-label',`View details for ${item.short}, ${item.day} ${timeRange(item.start,item.duration)}`);
+    const code=document.createElement('span');code.className='class-code';code.textContent=item.short||'SUBJECT';main.append(code);
+    if(item.room){const room=document.createElement('span');room.className='class-room';room.textContent=item.room.toLowerCase().startsWith('room')?item.room:`Room ${item.room}`;main.append(room);}
+    const teachers=document.createElement('span');teachers.className='class-teachers';teachers.textContent=item.teacherShort||' ';main.append(teachers);
+    const cat=document.createElement('span');cat.className='class-category';cat.textContent=item.category||'Other';main.append(cat);
+    if(interactive)main.addEventListener('click',()=>openClassDetails(item.id));tile.append(main);
+    if(interactive){const actions=document.createElement('div');actions.className='tile-actions';const edit=makeButton('✎','tile-action',()=>editClass(item.id),`Edit ${item.short}`);const details=makeButton('···','tile-action',()=>openClassDetails(item.id),`Details for ${item.short}`);actions.append(edit,details);tile.append(actions);}
+    return tile;}
+  function daysToShow(){return DAYS.filter(d=>d!=='Saturday'||state.ui.showSaturday).filter(d=>d!=='Sunday'||state.ui.showSunday);}
+  function classAt(day,start){return state.classes.filter(c=>c.day===day&&Number(c.start)===start).sort((a,b)=>a.id-b.id)[0];}
+  function renderTable(headerId,bodyId,interactive=true){const head=$(headerId),body=$(bodyId);if(!head||!body)return;head.replaceChildren();body.replaceChildren();const hrow=document.createElement('tr');const corner=document.createElement('th');corner.textContent='DAY';corner.scope='col';hrow.append(corner);
+    for(let i=0;i<state.settings.slotCount;i++){const th=document.createElement('th');th.scope='col';th.className='time-head';const start=document.createElement('span');start.className='time-start';start.textContent=fmtTime(slotStart(i),true);const end=document.createElement('span');end.className='time-end';end.textContent=fmtTime(slotEnd(i),true);th.append(start,end);hrow.append(th);}head.append(hrow);
+    daysToShow().forEach((day,dayIndex)=>{const tr=document.createElement('tr');const th=document.createElement('th');th.scope='row';th.className='day-head';const label=document.createElement('span');label.textContent=day;th.append(label);if(interactive){const plus=makeButton('＋','table-day-plus',()=>quickAdd(day,firstOpenSlot(day)),'Add a class on '+day);th.append(plus);}tr.append(th);let slot=0;
+      while(slot<state.settings.slotCount){const cls=classAt(day,slot);if(cls){const td=document.createElement('td');td.className='occupied-cell';const duration=Math.max(1,Math.min(Number(cls.duration)||1,state.settings.slotCount-slot));td.colSpan=duration;td.append(tileForClass(cls,interactive));tr.append(td);slot+=duration;continue;}
+        const covered=state.classes.some(c=>c.day===day&&c.start<slot&&c.start+c.duration>slot);if(covered){slot++;continue;}
+        const td=document.createElement('td');td.className='empty-slot';if(interactive){const btn=makeButton('＋','empty-slot-btn',()=>quickAdd(day,slot),`Add a class on ${day} at ${fmtTime(slotStart(slot),true)}`);td.append(btn);}else{td.textContent='';}tr.append(td);slot++;
+      }body.append(tr);});}
+  function renderMobile(holderId,interactive=true){const holder=$(holderId);if(!holder)return;holder.replaceChildren();daysToShow().forEach((day,index)=>{const section=document.createElement('section');section.className='mobile-day';const header=document.createElement('div');header.className='mobile-day-header';const label=document.createElement('div');label.className='mobile-day-label';const number=document.createElement('span');number.className='day-index';number.textContent=String(index+1).padStart(2,'0');const name=document.createElement('strong');name.textContent=day;const classes=state.classes.filter(c=>c.day===day).sort((a,b)=>a.start-b.start);const count=document.createElement('small');count.textContent=classes.length===1?'1 class':`${classes.length} classes`;label.append(number,name,count);header.append(label);if(interactive)header.append(makeButton('＋','day-add-button',()=>quickAdd(day,firstOpenSlot(day)),'Add a class on '+day));section.append(header);
+      if(!classes.length){const empty=document.createElement('div');empty.className='mobile-empty-day';const msg=document.createElement('span');msg.textContent='A free day. Keep it that way or add a class.';empty.append(msg);if(interactive)empty.append(makeButton('＋ Add class','button button-outline',()=>quickAdd(day,0),'Add a class on '+day));section.append(empty);}
+      classes.forEach(cls=>{const row=document.createElement('div');row.className='mobile-class-row';const times=document.createElement('div');times.className='mobile-time-block';const st=document.createElement('span');st.className='mobile-time-start';st.textContent=fmtTime(slotStart(cls.start),true);const dash=document.createElement('span');dash.className='mobile-time-divider';dash.textContent='to';const en=document.createElement('span');en.className='mobile-time-end';en.textContent=fmtTime(slotStart(cls.start+cls.duration),true);times.append(st,dash,en);const tile=document.createElement('div');const color=chosenColor(cls),ink=contrastColor(color);tile.className='mobile-class-tile';tile.style.backgroundColor=color;tile.style.color=ink;const main=document.createElement('button');main.type='button';main.className='mobile-class-main';main.style.color=ink;const code=document.createElement('span');code.className='class-code';code.textContent=cls.short||'SUBJECT';const room=document.createElement('span');room.className='class-room';room.textContent=cls.room?(cls.room.toLowerCase().startsWith('room')?cls.room:`Room ${cls.room}`):'Room not set';const teachers=document.createElement('span');teachers.className='class-teachers';teachers.textContent=cls.teacherShort||'Teacher not set';const category=document.createElement('span');category.className='class-category';category.textContent=cls.category||'Other';main.append(code,room,teachers,category);if(interactive)main.addEventListener('click',()=>openClassDetails(cls.id));tile.append(main);if(interactive){const actions=document.createElement('div');actions.className='mobile-tile-actions';actions.append(makeButton('✎','icon-button',()=>editClass(cls.id),'Edit class'),makeButton('···','icon-button',()=>openClassDetails(cls.id),'Class details'));tile.append(actions);}row.append(times,tile);section.append(row);});holder.append(section);});}
+  function renderSchedules(){renderTable('timeHeader','tableBody',true);renderMobile('mobileSchedule',true);renderTable('previewTimeHeader','previewTableBody',false);renderMobile('previewMobileSchedule',false);renderLegend('legend');renderLegend('previewLegend');}
+  function firstOpenSlot(day){const taken=state.classes.filter(c=>c.day===day).map(c=>[c.start,c.start+c.duration]);for(let i=0;i<state.settings.slotCount;i++){if(!taken.some(([a,b])=>a<=i&&b>i))return i;}return 0;}
+
+  function renderClassList(){const holder=$('classList');holder.replaceChildren();$('classCount').textContent=`${state.classes.length} ${state.classes.length===1?'class':'classes'}`;const sorted=state.classes.slice().sort((a,b)=>DAYS.indexOf(a.day)-DAYS.indexOf(b.day)||a.start-b.start);if(!sorted.length){const p=document.createElement('p');p.className='empty-note';p.textContent='Your classes will appear here when you start adding them.';holder.append(p);return;}sorted.forEach(item=>{const row=document.createElement('article');row.className='class-list-entry';const bar=document.createElement('span');bar.className='entry-color';bar.style.backgroundColor=chosenColor(item);const copy=document.createElement('div');copy.className='entry-copy';const name=document.createElement('strong');name.textContent=item.short;const sub=document.createElement('small');sub.textContent=`${item.day} · ${timeRange(item.start,item.duration)}${item.room?' · '+item.room:''}${item.teacherShort?' · '+item.teacherShort:''}`;copy.append(name,sub);const actions=document.createElement('div');actions.className='entry-buttons';actions.append(makeButton('✎','icon-button',()=>editClass(item.id),'Edit class'),makeButton('×','icon-button',()=>deleteClass(item.id),'Delete class'));row.append(bar,copy,actions);holder.append(row);});}
+
+  function renderSubjects(){const holder=$('subjectList');holder.replaceChildren();$('subjectCount').textContent=`${state.subjects.length} ${state.subjects.length===1?'subject':'subjects'}`;$('noSubjects').hidden=state.subjects.length>0;state.subjects.slice().sort((a,b)=>a.short.localeCompare(b.short)).forEach(subject=>{const card=document.createElement('article');card.className='subject-card';card.style.setProperty('--subject-color',subjectColor(subject));const top=document.createElement('div');top.className='subject-card-head';const title=document.createElement('h4');title.textContent=subject.short;title.title=subject.fullName||subject.short;const category=document.createElement('span');category.className='category-pill';category.textContent=subject.category;top.append(title,category);card.append(top);if(subject.fullName){const full=document.createElement('p');full.textContent=subject.fullName;card.append(full);}const teacherWrap=document.createElement('div');teacherWrap.className='subject-teachers';if(subject.teachers.length){subject.teachers.forEach(t=>{const chip=document.createElement('span');chip.className='teacher-chip';chip.textContent=t.name?`${t.initials} · ${t.name}`:t.initials;teacherWrap.append(chip);});}else{const empty=document.createElement('span');empty.className='field-help';empty.textContent='No teachers saved';teacherWrap.append(empty);}card.append(teacherWrap);const actions=document.createElement('div');actions.className='subject-card-actions';actions.append(makeButton('＋ Teacher','button button-outline',()=>openTeacherManager(subject.id),'Add or manage subject teachers'),makeButton('Edit','button button-quiet',()=>editSubject(subject.id),'Edit subject'),makeButton('Delete','button button-quiet',()=>deleteSubject(subject.id),'Delete subject'));card.append(actions);holder.append(card);});fillSubjectSelect($('subjectSelect').value);fillReminderSubjectList();}
+
+  function renderReminders(){const holder=$('reminderList');holder.replaceChildren();const sorted=state.reminders.slice().sort((a,b)=>Number(a.done)-Number(b.done)||byDate(a,b));$('reminderCount').textContent=`${state.reminders.filter(r=>!r.done).length} pending`;sorted.forEach(item=>{const card=document.createElement('article');card.className='reminder-entry'+(item.done?' completed':'');const marker=document.createElement('div');marker.className='reminder-date';const date=new Date(`${item.date}T12:00:00`);const num=document.createElement('strong');num.textContent=Number.isNaN(date.getTime())?'—':String(date.getDate());const mon=document.createElement('small');mon.textContent=Number.isNaN(date.getTime())?'':date.toLocaleDateString('en-IN',{month:'short'});marker.append(num,mon);const content=document.createElement('div');content.className='reminder-entry-main';const title=document.createElement('strong');title.className='reminder-entry-title';title.textContent=item.title;const meta=document.createElement('div');meta.className='reminder-entry-meta';meta.textContent=[item.type,dateLabel(item.date),item.time?fmtTime(minutesFromTime(item.time),true):'',item.subject].filter(Boolean).join(' · ');content.append(title,meta);if(item.notes){const note=document.createElement('p');note.className='reminder-entry-note';note.textContent=item.notes;content.append(note);}const actions=document.createElement('div');actions.className='reminder-entry-actions';actions.append(makeButton(item.done?'↺ Undo':'✓ Done','button button-outline',()=>toggleReminder(item.id),'Toggle completed status'),makeButton('Edit','button button-outline',()=>editReminder(item.id),'Edit reminder'),makeButton('×','button button-quiet',()=>deleteReminder(item.id),'Delete reminder'));card.append(marker,content,actions);holder.append(card);});renderReminderPreview();}
+  function renderReminderPreview(){const holder=$('reminderPreview');holder.replaceChildren();const upcoming=state.reminders.filter(r=>!r.done).sort(byDate).slice(0,3);$('noReminderPreview').hidden=upcoming.length>0;upcoming.forEach(r=>{const card=document.createElement('article');card.className='mini-reminder';const d=new Date(`${r.date}T12:00:00`);const marker=document.createElement('div');marker.className='date-marker';const n=document.createElement('strong');n.textContent=Number.isNaN(d.getTime())?'—':String(d.getDate());const mo=document.createElement('span');mo.textContent=Number.isNaN(d.getTime())?'':d.toLocaleDateString('en-IN',{month:'short'});marker.append(n,mo);const copy=document.createElement('div');copy.className='mini-reminder-copy';const title=document.createElement('strong');title.textContent=r.title;const meta=document.createElement('p');meta.textContent=[r.type,r.subject,r.time?fmtTime(minutesFromTime(r.time),true):''].filter(Boolean).join(' · ');copy.append(title,meta);card.append(marker,copy);holder.append(card);});}
+
+  function renderAll(){applyPalette();renderMetadata();renderSchedules();renderClassList();renderSubjects();renderReminders();}
+  function activateTab(name,scroll=false){document.querySelectorAll('.tool-tab').forEach(tab=>{const active=tab.dataset.tab===name;tab.classList.toggle('active',active);tab.setAttribute('aria-selected',String(active));});document.querySelectorAll('[data-panel]').forEach(panel=>{const active=panel.dataset.panel===name;panel.classList.toggle('active',active);panel.hidden=!active;});if(scroll)$('tab-'+name).scrollIntoView({behavior:'smooth',block:'start'});}
+
+  function quickAdd(day='Monday',start=0){editingClassId=null;resetClassForm();$('classDay').value=day;$('classStart').value=String(Math.min(Math.max(0,start),state.settings.slotCount-1));updateDurationOptions(1);activateTab('quick',false);$('tab-quick').scrollIntoView({behavior:'smooth',block:'start'});$('subjectSelect').focus({preventScroll:true});}
+  function editClass(id){const item=state.classes.find(c=>c.id===id);if(!item)return;editingClassId=item.id;activateTab('quick',true);$('classFormHeading').textContent='Edit class';$('saveClassBtn').textContent='Save class changes';$('cancelClassEdit').hidden=false;$('subjectSelect').value=item.subjectId;fillTeacherPicker(item.subjectId,item.teacherIds||[]);$('classDay').value=item.day;$('classStart').value=String(Math.min(item.start,state.settings.slotCount-1));updateDurationOptions(item.duration);$('duration').value=String(Math.min(item.duration,Number($('duration').options[$('duration').options.length-1]?.value||1)));$('room').value=item.room||'';$('extra').value=item.extra||'';$('classColorMode').value=item.colour==='custom'?'custom':'subject';$('classCustomColor').value=item.customColour||'#E8B7CB';$('classCustomColor').hidden=$('classColorMode').value!=='custom';$('classFormHeading').scrollIntoView({behavior:'smooth',block:'start'});}
+  function resetClassForm(){editingClassId=null;$('classForm').reset();$('classFormHeading').textContent='Add a class';$('saveClassBtn').textContent='＋ Add to timetable';$('cancelClassEdit').hidden=true;$('classColorMode').value='subject';$('classCustomColor').hidden=true;$('classCustomColor').value='#E8B7CB';$('subjectSelect').value='';fillTeacherPicker('');$('classDay').value='Monday';$('classStart').value='0';updateDurationOptions(1);setStatus('classStatus','');}
+  function openClassDetails(id){const item=state.classes.find(c=>c.id===id);if(!item)return;detailClassId=id;$('dialogTitle').textContent=item.short||'Class details';const holder=$('dialogLines');holder.replaceChildren();const subject=state.subjects.find(s=>s.id===item.subjectId);const pairs=[['Subject',subject?.fullName||item.fullSubject||item.short],['Code',item.short],['Day',item.day],['Time',timeRange(item.start,item.duration)],['Duration',`${item.duration*Number(state.settings.periodMinutes)} minutes`],['Room',item.room],['Teacher(s)',item.teacherFull||item.teacherShort],['Category',item.category],['Extra notes',item.extra]];pairs.filter(([,v])=>text(v)).forEach(([label,value])=>{const row=document.createElement('div');row.className='detail-line';const strong=document.createElement('strong');strong.textContent=label;const span=document.createElement('span');span.textContent=String(value);row.append(strong,span);holder.append(row);});const dialog=$('detailDialog');if(dialog.showModal)dialog.showModal();else alert(pairs.filter(p=>text(p[1])).map(p=>p.join(': ')).join('\n'));}
+  function deleteClass(id){const item=state.classes.find(c=>c.id===id);if(!item||!confirm(`Remove ${item.short} from ${item.day}?`))return;state.classes=state.classes.filter(c=>c.id!==id);persist();renderAll();setStatus('classStatus','Class removed.');}
+  function handleClassSubmit(event){event.preventDefault();const subject=state.subjects.find(s=>s.id===$('subjectSelect').value);if(!subject){setStatus('classStatus','Choose a saved subject first. Add one in Subjects & teachers.',true);return;}const day=$('classDay').value,start=Number($('classStart').value||0),duration=Number($('duration').value||1);if(start+duration>state.settings.slotCount){setStatus('classStatus','That class goes beyond the last period. Choose an earlier start or shorter duration.',true);return;}const collision=state.classes.find(c=>c.id!==editingClassId&&c.day===day&&start<c.start+c.duration&&start+duration>c.start);if(collision){setStatus('classStatus',`This overlaps ${collision.short} (${timeRange(collision.start,collision.duration)}). Choose another time or edit the existing class.`,true);return;}const teacherIds=selectedTeacherIdsFromForm();const teachers=teacherIds.map(id=>subject.teachers.find(t=>t.id===id)).filter(Boolean);const colorMode=$('classColorMode').value;const old=state.classes.find(c=>c.id===editingClassId);const cls={id:editingClassId??(Math.max(0,...state.classes.map(c=>Number(c.id)||0))+1),day,start,duration,short:subject.short,room:text($('room').value),teacherShort:teachers.map(t=>t.initials).filter(Boolean).join(' / '),category:subject.category,fullSubject:subject.fullName,teacherFull:teachers.map(t=>t.name).filter(Boolean).join(', '),extra:text($('extra').value),colour:colorMode==='custom'?'custom':'auto',customColour:colorMode==='custom'?$('classCustomColor').value:'',subjectId:subject.id,teacherIds};if(old)state.classes=state.classes.map(c=>c.id===editingClassId?cls:c);else state.classes.push(cls);persist();renderAll();setStatus('classStatus',old?'Class updated.':'Class added to your timetable.');resetClassForm();}
+
+  function resetSubjectForm(){editingSubjectId=null;$('subjectForm').reset();$('subjectId').value='';$('subjectFormHeading').textContent='Save your subjects';$('saveSubjectBtn').textContent='＋ Save subject';$('cancelSubjectEdit').hidden=true;$('subjectCategory').value='Core';$('subjectColorMode').value='palette';$('subjectCustomColor').value='#E8B7CB';$('subjectCustomColor').disabled=true;$('firstTeacherShort').value='';$('firstTeacherFull').value='';setStatus('subjectStatus','');}
+  function editSubject(id){const s=state.subjects.find(x=>x.id===id);if(!s)return;editingSubjectId=s.id;$('subjectId').value=s.id;$('subjectShort').value=s.short;$('subjectCategory').value=s.category;$('subjectFullName').value=s.fullName;$('subjectColorMode').value=s.colorMode;$('subjectCustomColor').value=s.customColor||'#E8B7CB';$('subjectCustomColor').disabled=s.colorMode!=='custom';$('firstTeacherShort').value='';$('firstTeacherFull').value='';$('subjectFormHeading').textContent='Edit subject';$('saveSubjectBtn').textContent='Save subject changes';$('cancelSubjectEdit').hidden=false;activateTab('subjects',true);$('subjectShort').focus({preventScroll:true});}
+  function handleSubjectSubmit(event){event.preventDefault();const short=text($('subjectShort').value).replace(/\s+/g,' ').toUpperCase();const id=editingSubjectId;const existing=state.subjects.find(s=>s.short.toLowerCase()===short.toLowerCase()&&s.id!==id);if(existing){setStatus('subjectStatus',`A subject called ${short} already exists. Edit that one instead.`,true);return;}const category=$('subjectCategory').value;const fullName=text($('subjectFullName').value);const colorMode=$('subjectColorMode').value;const customColor=$('subjectCustomColor').value;let subject=state.subjects.find(s=>s.id===id);if(subject){subject.short=short;subject.category=category;subject.fullName=fullName;subject.colorMode=colorMode;subject.customColor=customColor;}else{subject={id:uid('subject'),short,category,fullName,colorMode,customColor,teachers:[]};state.subjects.push(subject);}const initials=text($('firstTeacherShort').value).toUpperCase();const name=text($('firstTeacherFull').value);if(initials||name){const autoInitials=initials||inferInitials(name);const dupe=subject.teachers.find(t=>t.initials.toLowerCase()===autoInitials.toLowerCase()&&t.name.toLowerCase()===name.toLowerCase());if(!dupe)subject.teachers.push({id:uid('teacher'),initials:autoInitials,name});}
+    state.classes.forEach(c=>{if(c.subjectId===subject.id){c.short=subject.short;c.category=subject.category;c.fullSubject=subject.fullName;c.teacherIds=(c.teacherIds||[]).filter(tid=>subject.teachers.some(t=>t.id===tid));const selected=subject.teachers.filter(t=>c.teacherIds.includes(t.id));c.teacherShort=selected.map(t=>t.initials).filter(Boolean).join(' / ');c.teacherFull=selected.map(t=>t.name).filter(Boolean).join(', ');}});persist();renderAll();setStatus('subjectStatus','Subject saved. You can reuse it whenever you add a class.');resetSubjectForm();}
+  function deleteSubject(id){const subject=state.subjects.find(s=>s.id===id);if(!subject)return;const usage=state.classes.filter(c=>c.subjectId===id).length;const message=usage?`${subject.short} is used by ${usage} scheduled class(es). Delete the subject and those classes too?`:`Delete ${subject.short} from your subject library?`;if(!confirm(message))return;state.subjects=state.subjects.filter(s=>s.id!==id);if(usage)state.classes=state.classes.filter(c=>c.subjectId!==id);persist();renderAll();setStatus('subjectStatus','Subject removed.');}
+  function openTeacherManager(subjectId){const subject=state.subjects.find(s=>s.id===subjectId);if(!subject)return;nextTeacherDialogSubjectId=subjectId;$('teacherDialogTitle').textContent=`Teachers · ${subject.short}`;$('teacherSubjectId').value=subjectId;$('teacherInitials').value='';$('teacherName').value='';renderTeacherManagerList();const d=$('teacherDialog');if(d.showModal)d.showModal();else activateTab('subjects',true);}
+  function renderTeacherManagerList(){const holder=$('teacherDialogList');holder.replaceChildren();const subject=state.subjects.find(s=>s.id===nextTeacherDialogSubjectId);if(!subject)return;if(!subject.teachers.length){const p=document.createElement('p');p.className='empty-note';p.textContent='No teachers added yet. Add the first one below.';holder.append(p);}subject.teachers.forEach(t=>{const row=document.createElement('div');row.className='teacher-manager-row';const dot=document.createElement('span');dot.className='teacher-chip';dot.textContent=t.initials;const copy=document.createElement('div');copy.className='teacher-manager-copy';const name=document.createElement('strong');name.textContent=t.name||t.initials;const initials=document.createElement('small');initials.textContent=t.name?t.initials:'Short form only';copy.append(name,initials);row.append(dot,copy,makeButton('×','icon-button',()=>removeTeacher(subject.id,t.id),'Remove teacher'));holder.append(row);});}
+  function handleTeacherSubmit(event){event.preventDefault();const subject=state.subjects.find(s=>s.id===$('teacherSubjectId').value);if(!subject)return;const initials=text($('teacherInitials').value).toUpperCase();const name=text($('teacherName').value);if(subject.teachers.some(t=>t.initials.toLowerCase()===initials.toLowerCase()&&t.name.toLowerCase()===name.toLowerCase())){setStatus('teacherStatus','That teacher is already in this subject.',true);return;}const teacher={id:uid('teacher'),initials,name};subject.teachers.push(teacher);persist();renderAll();$('teacherInitials').value='';$('teacherName').value='';setStatus('teacherStatus','Teacher added.');renderTeacherManagerList();}
+  function removeTeacher(subjectId,teacherId){const subject=state.subjects.find(s=>s.id===subjectId);if(!subject)return;if(state.classes.some(c=>c.subjectId===subjectId&&(c.teacherIds||[]).includes(teacherId))&&!confirm('This teacher is assigned to a class. Remove them from the subject and those class entries?'))return;subject.teachers=subject.teachers.filter(t=>t.id!==teacherId);state.classes.forEach(c=>{if(c.subjectId===subjectId){c.teacherIds=(c.teacherIds||[]).filter(t=>t!==teacherId);const selected=subject.teachers.filter(t=>c.teacherIds.includes(t.id));c.teacherShort=selected.map(t=>t.initials).filter(Boolean).join(' / ');c.teacherFull=selected.map(t=>t.name).filter(Boolean).join(', ');}});persist();renderAll();renderTeacherManagerList();}
+
+  function editReminder(id){const r=state.reminders.find(x=>x.id===id);if(!r)return;editingReminderId=r.id;$('reminderId').value=r.id;$('reminderTitle').value=r.title;$('reminderDate').value=r.date;$('reminderTime').value=r.time;$('reminderSubject').value=r.subject;$('reminderType').value=r.type;$('reminderNotes').value=r.notes;$('reminderFormHeading').textContent='Edit reminder';$('saveReminderBtn').textContent='Save changes';$('cancelReminderEdit').hidden=false;activateTab('reminders',true);$('reminderTitle').focus({preventScroll:true});}
+  function resetReminderForm(){editingReminderId=null;$('reminderForm').reset();$('reminderId').value='';$('reminderDate').value=localDateString();$('reminderFormHeading').textContent='Add a reminder';$('saveReminderBtn').textContent='＋ Add reminder';$('cancelReminderEdit').hidden=true;setStatus('reminderStatus','');}
+  function handleReminderSubmit(event){event.preventDefault();const title=text($('reminderTitle').value),date=$('reminderDate').value;if(!title||!date){setStatus('reminderStatus','Enter a task and date first.',true);return;}const old=state.reminders.find(r=>r.id===editingReminderId);const item={id:editingReminderId??(Math.max(0,...state.reminders.map(r=>Number(r.id)||0))+1),title,date,time:$('reminderTime').value,subject:text($('reminderSubject').value),type:$('reminderType').value,notes:text($('reminderNotes').value),done:old?.done||false};if(old)state.reminders=state.reminders.map(r=>r.id===editingReminderId?item:r);else state.reminders.push(item);persist();renderAll();setStatus('reminderStatus',old?'Reminder updated.':'Reminder saved.');resetReminderForm();}
+  function toggleReminder(id){const r=state.reminders.find(x=>x.id===id);if(!r)return;r.done=!r.done;persist();renderAll();}
+  function deleteReminder(id){const r=state.reminders.find(x=>x.id===id);if(!r||!confirm(`Delete reminder “${r.title}”?`))return;state.reminders=state.reminders.filter(x=>x.id!==id);persist();renderAll();}
+
+  function updateSettingsFromForm(){readMetadataForm();const previous={...state.settings};state.settings={startTime:$('startTime').value||'08:00',periodMinutes:Number($('periodMinutes').value||60),slotCount:Number($('slotCount').value||11),palette:paletteId($('settingsPalette').value||state.settings.palette)};if(!window.DU_PALETTES?.[state.settings.palette])state.settings.palette='cute-muted';state.ui.showSaturday=$('showSaturday').checked;state.ui.showSunday=$('showSunday').checked;updateTimeOptions();persist();renderAll();fillSubjectSelect($('subjectSelect').value);setStatus('settingsStatus',previous.startTime!==state.settings.startTime||previous.periodMinutes!==state.settings.periodMinutes||previous.slotCount!==state.settings.slotCount?'Settings applied. Your classes have kept their slot positions.':'Settings saved.');}
+
+  function downloadBlob(blob,filename){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);}
+  function exportBackup(){const payload={format:'du-college-timetable-builder-v3',exportedAt:new Date().toISOString(),...state};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),'du-college-timetable-backup.json');setStatus('classStatus','JSON backup downloaded. Keep it in Files or Drive.');}
+  async function importBackup(file){if(!file)return;try{const parsed=JSON.parse(await file.text());const incoming=Array.isArray(parsed)?{classes:parsed}:parsed;if(!incoming||!Array.isArray(incoming.classes))throw new Error('This file does not contain a timetable class list.');if(!confirm('Import this backup and replace the timetable currently saved in this browser?'))return;state=normalizeState(incoming);persist();fillMetadataForm();$('showSaturday').checked=state.ui.showSaturday;$('showSunday').checked=state.ui.showSunday;buildPaletteOptions();updateTimeOptions(false);resetClassForm();resetSubjectForm();resetReminderForm();renderAll();setStatus('saveStatus','Backup imported. The saved timetable, subject library and reminders have been restored.');}catch(error){setStatus('saveStatus',error.message||'Could not read that backup file.',true);}finally{$('importFile').value='';}}
+  async function shareWebsite(){const data={title:'DU College Timetable Builder',text:'Create a customized college timetable, save subjects and teachers, and keep track of reminders.',url:location.href};try{if(navigator.share){await navigator.share(data);setStatus('saveStatus','Website shared. To share your own timetable, send its PDF or JSON backup.');return;}if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(data.url);setStatus('saveStatus','Website link copied. To share your own timetable, send its PDF or JSON backup.');return;}prompt('Copy the website link:',data.url);}catch(error){if(error.name!=='AbortError')setStatus('saveStatus','Sharing was not available. You can copy the website address from your browser.',true);}}
+  function resetAll(){if(!confirm('Reset everything saved in this browser? This removes classes, subjects, teacher lists, reminders, and college settings. Download a backup first if you may need them.'))return;state=defaultState();persist();fillMetadataForm();$('showSaturday').checked=true;$('showSunday').checked=false;buildPaletteOptions();updateTimeOptions(false);resetClassForm();resetSubjectForm();resetReminderForm();renderAll();}
+  function openPreview(){renderMetadata();renderSchedules();const d=$('previewDialog');if(d.showModal)d.showModal();else d.setAttribute('open','');}
+  function printPreview(){document.body.classList.add('print-preview');window.print();}
+  function configureContacts(){const c=window.DU_CONTACTS||{};const email=text(c.email),insta=text(c.instagram),reddit=text(c.reddit);const emailLink=$('contactEmail');if(email){emailLink.href='mailto:'+email;emailLink.removeAttribute('aria-disabled');emailLink.title='Email the creator';emailLink.addEventListener('click',event=>{const mobile=window.matchMedia('(max-width: 740px), (pointer: coarse)').matches;if(!mobile){event.preventDefault();const url='https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(email)+'&su='+encodeURIComponent('DU College Timetable Builder feedback');window.open(url,'_blank','noopener,noreferrer');}});}else{emailLink.href='#contact';emailLink.title='Set your email in contact-config.js';}setContactLink('contactInstagram',insta,'https://www.instagram.com/');setContactLink('contactReddit',reddit,'https://www.reddit.com/');}
+  function setContactLink(id,value,base){const a=$(id);if(!value){a.href='#contact';a.title='Set this link in contact-config.js';a.setAttribute('aria-disabled','true');return;}a.href=/^https?:\/\//i.test(value)?value:base+encodeURIComponent(value.replace(/^@|^u\//,''));a.target='_blank';a.rel='noopener noreferrer';a.removeAttribute('aria-disabled');}
+
+  function setupEvents(){
+    $('paletteSelect').addEventListener('change',e=>{applyThemeChoice(e.target.value);$('settingsPalette').value=state.settings.palette;});$('settingsPalette').addEventListener('change',e=>{applyThemeChoice(e.target.value);$('paletteSelect').value=state.settings.palette;});
+    ['collegeName','courseName','semester','shift','studentName'].forEach(id=>{$(id).addEventListener('input',()=>{readMetadataForm();persist();renderMetadata();});$(id).addEventListener('change',()=>{readMetadataForm();persist();renderMetadata();});});
+    $('settingsForm').addEventListener('submit',e=>{e.preventDefault();updateSettingsFromForm();});document.querySelectorAll('[data-preset-start]').forEach(btn=>btn.addEventListener('click',()=>{$('startTime').value=btn.dataset.presetStart;$('shift').value=btn.dataset.presetShift;updateSettingsFromForm();}));
+    $('classDay').addEventListener('change',()=>{});$('classStart').addEventListener('change',()=>updateDurationOptions(Number($('duration').value||1)));$('duration').addEventListener('change',()=>updateDurationOptions(Number($('duration').value||1)));$('subjectSelect').addEventListener('change',e=>{if(e.target.value==='__add_subject__'){activateTab('subjects',true);$('subjectShort').focus({preventScroll:true});e.target.value='';return;}fillTeacherPicker(e.target.value,[]);});$('classColorMode').addEventListener('change',()=>{$('classCustomColor').hidden=$('classColorMode').value!=='custom';});$('classForm').addEventListener('submit',handleClassSubmit);$('cancelClassEdit').addEventListener('click',resetClassForm);$('clearClassForm').addEventListener('click',resetClassForm);
+    $('subjectForm').addEventListener('submit',handleSubjectSubmit);$('cancelSubjectEdit').addEventListener('click',resetSubjectForm);$('subjectColorMode').addEventListener('change',()=>{$('subjectCustomColor').disabled=$('subjectColorMode').value!=='custom';});$('teacherForm').addEventListener('submit',handleTeacherSubmit);$('closeTeacherDialog').addEventListener('click',()=>$('teacherDialog').close());$('closeDialog').addEventListener('click',()=>$('detailDialog').close());$('dialogCloseBtn').addEventListener('click',()=>$('detailDialog').close());$('dialogEditBtn').addEventListener('click',()=>{$('detailDialog').close();if(detailClassId!==null)editClass(detailClassId);});
+    $('reminderForm').addEventListener('submit',handleReminderSubmit);$('cancelReminderEdit').addEventListener('click',resetReminderForm);$('clearReminderForm').addEventListener('click',resetReminderForm);
+    $('showSaturday').addEventListener('change',()=>{state.ui.showSaturday=$('showSaturday').checked;persist();renderSchedules();});$('showSunday').addEventListener('change',()=>{state.ui.showSunday=$('showSunday').checked;persist();renderSchedules();});
+    document.querySelectorAll('[data-tab]').forEach(btn=>btn.addEventListener('click',()=>activateTab(btn.dataset.tab)));document.querySelectorAll('[data-open-tab]').forEach(btn=>btn.addEventListener('click',()=>activateTab(btn.dataset.openTab,true)));
+    $('exportBtn').addEventListener('click',exportBackup);$('quickBackupBtn')?.addEventListener('click',exportBackup);$('importBtn').addEventListener('click',()=>$('importFile').click());$('importFile').addEventListener('change',e=>importBackup(e.target.files?.[0]));$('clearAllBtn').addEventListener('click',resetAll);$('shareBtn').addEventListener('click',shareWebsite);$('headerShareBtn').addEventListener('click',shareWebsite);$('previewBtn').addEventListener('click',openPreview);$('printBtn').addEventListener('click',()=>{document.body.classList.remove('print-preview');window.print();});$('previewPrintBtn').addEventListener('click',printPreview);$('closePreviewBtn').addEventListener('click',()=>$('previewDialog').close());$('previewDialog').addEventListener('close',()=>document.body.classList.remove('print-preview'));window.addEventListener('afterprint',()=>document.body.classList.remove('print-preview'));
   }
 
-  function reminderPairs(item) {
-    return [['Reminder',item.title],['Date',formatDate(item.date,{weekday:'long',day:'numeric',month:'long',year:'numeric'})],['Time',item.time?fmtTime(item.time.split(':').reduce((h,m,i)=>h*60+Number(m),0)):'Not specified'],['Subject',item.subject],['Type',item.type],['Notes',item.notes]]
-      .filter(([k,v])=>v!==undefined&&v!==null&&String(v).trim()!=='');
-  }
-  function renderReminders() {
-    const holder=$('reminderList');holder.replaceChildren();
-    const sorted=[...state.reminders].sort((a,b)=>Number(a.done)-Number(b.done)||reminderTimestamp(a)-reminderTimestamp(b));
-    const pending=state.reminders.filter(item=>!item.done).length;
-    $('reminderCount').textContent=`${pending} pending`;
-    $('noReminders').hidden=state.reminders.length>0;
-    sorted.forEach(item=>{
-      const card=document.createElement('article');card.className='reminder'+(item.done?' done-item':'');
-      const date=new Date(`${item.date}T12:00:00`);
-      const mark=document.createElement('div');mark.className='reminder-mark';
-      const day=document.createElement('span');day.textContent=String(date.getDate());const month=document.createElement('small');month.textContent=date.toLocaleDateString('en-IN',{month:'short'});mark.append(day,month);
-      const content=document.createElement('div');content.className='reminder-content';
-      const topline=document.createElement('div');topline.className='reminder-topline';const title=document.createElement('strong');title.textContent=item.title;topline.appendChild(title);
-      const badge=document.createElement('span');const st=reminderStatus(item);badge.className='reminder-badge'+(st==='Overdue'?' overdue':st==='Completed'?' done':'');badge.textContent=st;topline.appendChild(badge);
-      const type=document.createElement('span');type.className='reminder-badge';type.textContent=item.type||'Other';topline.appendChild(type);
-      content.appendChild(topline);
-      if(item.subject){const subj=document.createElement('div');subj.className='reminder-meta';subj.textContent=`Subject: ${item.subject}`;content.appendChild(subj);}
-      if(item.notes){const note=document.createElement('p');note.textContent=item.notes;content.appendChild(note);}
-      const meta=document.createElement('div');meta.className='reminder-meta';meta.textContent=`${formatDate(item.date,{weekday:'short',day:'numeric',month:'short',year:'numeric'})}${item.time?' · '+fmtTime(item.time.split(':').reduce((h,m)=>h*60+Number(m),0)):''}`;content.appendChild(meta);
-      const controls=document.createElement('div');controls.className='reminder-controls no-print';
-      const done=document.createElement('button');done.type='button';done.className='secondary small';done.textContent=item.done?'Mark pending':'Mark done';done.addEventListener('click',()=>{item.done=!item.done;renderAll();persist();});
-      const edit=document.createElement('button');edit.type='button';edit.className='secondary small';edit.textContent='Edit';edit.addEventListener('click',()=>editReminder(item.id));
-      const del=document.createElement('button');del.type='button';del.className='danger small';del.textContent='Delete';del.addEventListener('click',()=>{state.reminders=state.reminders.filter(x=>x.id!==item.id);if(editingReminderId===item.id)resetReminderForm();renderAll();persist();setStatus('reminderStatus','Reminder deleted.');});
-      controls.append(done,edit,del);content.appendChild(controls);card.append(mark,content);holder.appendChild(card);
-    });
-  }
-  function getReminderFormData() {
-    return {id:editingReminderId===null?nextReminderId++:editingReminderId,title:trimValue('reminderTitle'),date:$('reminderDate').value,time:$('reminderTime').value,subject:trimValue('reminderSubject'),type:$('reminderType').value,notes:trimValue('reminderNotes'),done:false};
-  }
-  function resetReminderForm() {
-    $('reminderForm').reset();editingReminderId=null;$('reminderFormHeading').textContent='Add a reminder';$('saveReminder').textContent='Add reminder';$('cancelReminderEdit').hidden=true;
-    $('reminderDate').value=localDateString();
-  }
-  function editReminder(id) {
-    const item=state.reminders.find(x=>x.id===id);if(!item)return;editingReminderId=id;
-    $('reminderTitle').value=item.title;$('reminderDate').value=item.date;$('reminderTime').value=item.time;$('reminderSubject').value=item.subject;$('reminderType').value=item.type;$('reminderNotes').value=item.notes;
-    $('reminderFormHeading').textContent='Edit reminder';$('saveReminder').textContent='Save changes';$('cancelReminderEdit').hidden=false;
-    $('reminderEditor').scrollIntoView({behavior:'smooth',block:'start'});$('reminderTitle').focus();
-  }
-  function renderAll() {
-    renderMetadata();renderDesktopTable();renderMobileSchedule();renderClassList();renderReminders();renderLegend();
-  }
-
-  $('settingsForm').addEventListener('submit',event=>{event.preventDefault();updateSettingsFromForm();});
-  document.querySelectorAll('[data-preset-start]').forEach(button=>button.addEventListener('click',()=>{
-    $('startTime').value=button.dataset.presetStart;$('shift').value=button.dataset.presetShift;updateSettingsFromForm();
-  }));
-  $('classStart').addEventListener('change',()=>updateDurationOptions(1));
-  $('palette').addEventListener('change',renderPalettePreview);
-  $('colour').addEventListener('change',syncCustomColourVisibility);
-  $('quickBackupBtn').addEventListener('click',()=>$('exportBtn').click());
-  $('classForm').addEventListener('submit',event=>{
-    event.preventDefault();const item=getClassFormData();
-    if(!item.short){setStatus('classStatus','Enter a subject short form.',true);return;}
-    if(item.start+item.duration>state.settings.slotCount){setStatus('classStatus','This class goes past the last time slot. Choose an earlier start or shorter duration.',true);return;}
-    if(hasOverlap(item,editingClassId)){setStatus('classStatus',`Time conflict: another class overlaps on ${item.day}.`,true);return;}
-    if(editingClassId!==null){state.classes=state.classes.map(x=>x.id===editingClassId?item:x);setStatus('classStatus','Class updated.');}
-    else{state.classes.push(item);setStatus('classStatus','Class added.');}
-    resetClassForm();renderAll();persist();
-  });
-  $('cancelClassEdit').addEventListener('click',()=>{resetClassForm();setStatus('classStatus','Edit cancelled.');});
-  $('clearClassForm').addEventListener('click',()=>{resetClassForm();setStatus('classStatus','Form cleared.');});
-  $('showSaturday').addEventListener('change',renderAll);$('showSunday').addEventListener('change',renderAll);
-  $('printBtn').addEventListener('click',()=>window.print());
-  $('closeDialog').addEventListener('click',()=> $('detailDialog').close());
-  $('clearAll').addEventListener('click',()=>{
-    if(confirm('Clear all classes and reminders? Your timetable details and timing settings will stay. Download a backup first if needed.')){
-      state.classes=[];state.reminders=[];resetClassForm();resetReminderForm();renderAll();persist();setStatus('classStatus','Classes and reminders cleared.');
-    }
-  });
-  $('exportBtn').addEventListener('click',()=>{
-    const payload={format:'du-college-timetable-builder-v2',exportedAt:new Date().toISOString(),...state};
-    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download='du-college-timetable-backup.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
-    setStatus('classStatus','Backup downloaded. Keep it somewhere safe.');
-  });
-  $('importBtn').addEventListener('click',()=>$('importFile').click());
-  $('importFile').addEventListener('change',async event=>{
-    const file=event.target.files[0];if(!file)return;
-    try{
-      const parsed=JSON.parse(await file.text());
-      const incoming=Array.isArray(parsed)?{classes:parsed}:parsed;
-      if(!Array.isArray(incoming.classes))throw new Error('This file does not contain a timetable class list.');
-      const fresh=normalizeState(incoming);
-      const valid=fresh.classes.every(item=>item.short&&Number.isInteger(item.start)&&item.start>=0&&Number.isInteger(item.duration)&&item.duration>0&&item.start+item.duration<=fresh.settings.slotCount&&DAYS.includes(item.day));
-      if(!valid)throw new Error('One or more classes have invalid time, day, duration or short form.');
-      for(let i=0;i<fresh.classes.length;i++){
-        if(fresh.classes.slice(i+1).some(other=>other.day===fresh.classes[i].day&&fresh.classes[i].start<other.start+other.duration&&other.start<fresh.classes[i].start+fresh.classes[i].duration))throw new Error('This backup has overlapping classes.');
-      }
-      state=fresh;nextClassId=Math.max(0,...state.classes.map(x=>x.id))+1;nextReminderId=Math.max(0,...state.reminders.map(x=>x.id))+1;
-      fillMetadataForm();updateClassStartOptions(0);updateDurationOptions(1);resetClassForm();resetReminderForm();renderAll();persist();setStatus('classStatus','Backup imported successfully.');
-    }catch(error){setStatus('classStatus','Import failed: '+error.message,true);}
-    event.target.value='';
-  });
-  $('shareBtn').addEventListener('click',async()=>{
-    const url=window.location.href;
-    if(window.location.protocol==='file:'){
-      $('shareStatus').textContent='This page is still a local file. Host it online first, then this button can share the public website link. Use Print / Save PDF to share today.';
-      return;
-    }
-    try{
-      if(navigator.share){await navigator.share({title:'DU College Timetable Builder',text:'Create and customise your college timetable.',url});$('shareStatus').textContent='Share menu opened.';}
-      else if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(url);$('shareStatus').textContent='Website link copied. Paste it into WhatsApp or a group chat.';}
-      else{$('shareStatus').textContent='Copy this website address from your browser bar: '+url;}
-    }catch(error){if(error.name!=='AbortError')$('shareStatus').textContent='Share was not completed. You can copy the website address from your browser bar.';}
-  });
-  $('reminderForm').addEventListener('submit',event=>{
-    event.preventDefault();const item=getReminderFormData();
-    if(!item.title||!item.date){setStatus('reminderStatus','Enter a reminder title and date.',true);return;}
-    if(editingReminderId!==null){const old=state.reminders.find(x=>x.id===editingReminderId);item.done=old?old.done:false;state.reminders=state.reminders.map(x=>x.id===editingReminderId?item:x);setStatus('reminderStatus','Reminder updated.');}
-    else{state.reminders.push(item);setStatus('reminderStatus','Reminder added.');}
-    resetReminderForm();renderAll();persist();
-  });
-  $('cancelReminderEdit').addEventListener('click',()=>{resetReminderForm();setStatus('reminderStatus','Edit cancelled.');});
-  $('clearReminderForm').addEventListener('click',()=>{resetReminderForm();setStatus('reminderStatus','Reminder form cleared.');});
-  $('demoBtn').addEventListener('click',()=>{
-    state.metadata={collegeName:'Example DU College',courseName:'B.Sc. Physical Science with Computer Science',semester:'Semester IV',shift:'Morning',studentName:''};
-    state.settings={startTime:'08:30',periodMinutes:60,slotCount:11,palette:'paper'};
-    state.classes=[
-      {id:1,day:'Monday',start:0,duration:1,short:'RA',room:'204',teacherShort:'AS',category:'Core',fullSubject:'Elements of Real Analysis',teacherFull:'Dr. Anil Sharma',extra:'Bring lecture notes.',colour:'auto'},
-      {id:2,day:'Monday',start:3,duration:2,short:'CS LAB',room:'Lab 2',teacherShort:'RV',category:'Lab',fullSubject:'Computer Science Practical',teacherFull:'Mr. R. Verma',extra:'Two-hour practical.',colour:'auto'},
-      {id:3,day:'Tuesday',start:1,duration:1,short:'DSA',room:'301',teacherShort:'PK',category:'Lecture',fullSubject:'Data Structures and Algorithms',teacherFull:'Dr. Priya Kumar',extra:'Review linked lists.',colour:'auto'},
-      {id:4,day:'Tuesday',start:5,duration:3,short:'PHY LAB',room:'Physics Lab',teacherShort:'NK',category:'Practical',fullSubject:'Physics Laboratory',teacherFull:'Dr. N. Khan',extra:'Three-slot laboratory.',colour:'auto'},
-      {id:5,day:'Wednesday',start:2,duration:1,short:'GE',room:'110',teacherShort:'MS',category:'GE',fullSubject:'Generic Elective',teacherFull:'Ms. Meera Singh',extra:'',colour:'auto'},
-      {id:6,day:'Thursday',start:4,duration:1,short:'AEC',room:'205',teacherShort:'SG',category:'AEC',fullSubject:'Ability Enhancement Course',teacherFull:'Ms. S. Gupta',extra:'',colour:'auto'},
-      {id:7,day:'Friday',start:6,duration:2,short:'DSE',room:'212',teacherShort:'AS',category:'DSE',fullSubject:'Discipline Specific Elective',teacherFull:'Dr. Anil Sharma',extra:'',colour:'auto'}
-    ];
-    state.reminders=[
-      {id:1,title:'Submit practical file',date:localDateString(new Date(Date.now()+2*86400000)),time:'11:00',subject:'Physics Lab',type:'Practical file',notes:'Check that diagrams and observations are complete.',done:false},
-      {id:2,title:'Prepare for class test',date:localDateString(new Date(Date.now()+5*86400000)),time:'09:30',subject:'Data Structures',type:'Test / Exam',notes:'Revise stacks, queues and linked lists.',done:false}
-    ];
-    nextClassId=8;nextReminderId=3;fillMetadataForm();updateClassStartOptions(0);updateDurationOptions(1);resetClassForm();resetReminderForm();renderAll();persist();
-    setStatus('classStatus','Sample loaded. Replace the example details with your own.');
-  });
-
-  function setupContactLinks() {
-    const contacts = window.DU_CONTACTS || {};
-    const email = String(contacts.email || '').trim();
-    const instagram = String(contacts.instagram || '').trim();
-    const reddit = String(contacts.reddit || '').trim();
-    const links = [
-      { id: 'contactEmail', value: email, url: value => 'mailto:' + value.replace(/^mailto:/i, '').trim() },
-      { id: 'contactInstagram', value: instagram, url: value => /^https?:\/\//i.test(value) ? value : 'https://www.instagram.com/' + value.replace(/^@/, '') + '/' },
-      { id: 'contactReddit', value: reddit, url: value => /^https?:\/\//i.test(value) ? value : 'https://www.reddit.com/user/' + value.replace(/^(u\/|@)/, '') + '/' }
-    ];
-    let complete = 0;
-    links.forEach(item => {
-      const el = $(item.id);
-      if (!el) return;
-      if (item.value) {
-        el.href = item.url(item.value);
-        el.removeAttribute('aria-disabled');
-        el.classList.remove('contact-link-disabled');
-        el.title = item.id === 'contactEmail' ? 'Email the creator' : 'Open creator profile';
-        if (item.id !== 'contactEmail') { el.target = '_blank'; el.rel = 'noopener noreferrer'; }
-        complete++;
-      } else {
-        el.href = '#contact';
-        el.setAttribute('aria-disabled', 'true');
-        el.classList.add('contact-link-disabled');
-        el.title = 'Add this contact in contact-config.js';
-        el.addEventListener('click', event => event.preventDefault());
-      }
-    });
-    const hint = $('contactHint');
-    if (hint) {
-      hint.hidden = complete === 3;
-      hint.textContent = email ? 'If your email app does not open, copy the address from contact-config.js and open your email provider manually.' : 'Add your email and social usernames in contact-config.js before publishing.';
-    }
-    const redditIcon = $('contactReddit')?.querySelector('svg');
-    if (redditIcon) redditIcon.innerHTML = '<circle cx="12" cy="12" r="10" fill="#FF4500" stroke="none"/><path d="M15.7 9.2a1.25 1.25 0 1 1 2.1 1.3c.12.45.2.93.2 1.42 0 2.65-2.68 4.8-6 4.8s-6-2.15-6-4.8c0-.5.08-.97.2-1.42a1.25 1.25 0 1 1 1.9-1.48c1-.65 2.28-1.03 3.68-1.03.5 0 .98.05 1.44.15l.86-4.05 3.1.66-.28 1.28-2.05-.44-.77 3.61c.6.2 1.16.48 1.62.82Z" fill="#fff" stroke="none"/><circle cx="10" cy="12" r=".8" fill="#FF4500" stroke="none"/><circle cx="14" cy="12" r=".8" fill="#FF4500" stroke="none"/><path d="M10.2 14c1.1.75 2.5.75 3.6 0" fill="none" stroke="#FF4500" stroke-width=".9" stroke-linecap="round"/>';
-    const year = $('footerYear');
-    if (year) year.textContent = String(new Date().getFullYear());
-  }
-  setupContactLinks();
-  if('serviceWorker' in navigator && /^https?:$/.test(window.location.protocol)) {
-    window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-  }
-
-  if(!loadSaved()) {
-    // Start with a clean timetable and sensible defaults.
-    state.settings={startTime:'08:00',periodMinutes:60,slotCount:11,palette:'paper'};
-  }
-  nextClassId=Math.max(0,...state.classes.map(x=>x.id))+1;
-  nextReminderId=Math.max(0,...state.reminders.map(x=>x.id))+1;
-  fillMetadataForm();updateClassStartOptions(0);updateDurationOptions(1);resetClassForm();resetReminderForm();renderAll();
-  $('settingsStatus').textContent = storageAvailable ? 'Auto-save is on for this browser. Download a backup before changing devices.' : 'Browser storage is unavailable here. Download a backup to keep your work.';
+  async function init(){if(window.DU_PALETTE_READY)await window.DU_PALETTE_READY;loadSaved();if(!window.DU_PALETTES?.[state.settings.palette])state.settings.palette=Object.keys(window.DU_PALETTES||{})[0]||'cute-muted';fillMetadataForm();buildPaletteOptions();$('showSaturday').checked=state.ui.showSaturday;$('showSunday').checked=state.ui.showSunday;updateTimeOptions(false);resetClassForm();resetSubjectForm();resetReminderForm();setupEvents();configureContacts();renderAll();persist();if(window.DU_PALETTE_LOAD_ERROR){setStatus('settingsStatus','Palette files could not load in this preview. Deploy the whole project folder or run it through a local web server.',true);}if('serviceWorker' in navigator && location.protocol!=='file:'){navigator.serviceWorker.register('./sw.js').catch(error=>console.warn('Service worker could not be registered',error));}}
+  init();
 })();

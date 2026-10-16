@@ -1,0 +1,31 @@
+{
+  "id": "y2k",
+  "name": "Y2K",
+  "mood": "electric lavender, icy blue and chrome",
+  "interface": {
+    "page": "#EAF2FF",
+    "surface": "#FCFDFF",
+    "surfaceAlt": "#DCE8FD",
+    "ink": "#18233F",
+    "muted": "#596783",
+    "line": "#C5D5F5",
+    "accent": "#7955F5",
+    "accentInk": "#FFFFFF",
+    "header": "#172240",
+    "headerInk": "#F7FAFF",
+    "highlight": "#F1A4E6"
+  },
+  "categories": {
+    "Core": "#BDAEFF",
+    "Lecture": "#8DD8F4",
+    "Tutorial": "#FFB8E7",
+    "Lab": "#A9E5D5",
+    "GE": "#D9F28B",
+    "AEC": "#FFC3AB",
+    "SEC": "#C5CBFF",
+    "DSE": "#F2D2FA",
+    "VAC": "#A4C9FF",
+    "Practical": "#E4D7BD",
+    "Other": "#D8E0EF"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "dark-academia",
+  "name": "Dark Academia",
+  "mood": "deep forest, parchment and brass",
+  "interface": {
+    "page": "#242922",
+    "surface": "#30362E",
+    "surfaceAlt": "#3B4338",
+    "ink": "#F0E7D6",
+    "muted": "#C0B8A6",
+    "line": "#525C4E",
+    "accent": "#C69A51",
+    "accentInk": "#201A10",
+    "header": "#171D18",
+    "headerInk": "#F5EDDC",
+    "highlight": "#B76C4D"
+  },
+  "categories": {
+    "Core": "#C8A66A",
+    "Lecture": "#C98269",
+    "Tutorial": "#8DA28A",
+    "Lab": "#D5BC7A",
+    "GE": "#7EAAA6",
+    "AEC": "#B18FAD",
+    "SEC": "#9CAAC0",
+    "DSE": "#D8C2A0",
+    "VAC": "#A4B78C",
+    "Practical": "#B7A38B",
+    "Other": "#A8AA9E"
+  }
+}

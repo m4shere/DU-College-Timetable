@@ -1,1 +1,4 @@
-.instructions.md
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
