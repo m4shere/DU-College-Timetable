@@ -106,3 +106,8 @@ The app keeps the previous `duCollegeTimetableBuilder.v2` storage key and reads 
 ## Feedback
 
 Open a GitHub issue or use the contact links configured in `contact-config.js`. Don't attach a private timetable backup to a public issue.
+
+
+## Replaceable icons and lecture/lab classes
+
+See [`assets/icons/README.md`](assets/icons/README.md) for the icon filename map. Replace any icon SVG in that folder with your preferred SVG using the same filename. Subjects are stored separately from class sessions: select a subject once, then choose Lecture, Tutorial, Lab / Practical, or Other for each scheduled class. This allows a single Physics subject to have both lectures and labs with their own teacher selections, times, and rooms. See [`ICON-AND-CLASS-CHANGES.md`](ICON-AND-CLASS-CHANGES.md) before deploying.
