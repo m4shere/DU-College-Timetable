@@ -1,4 +1,4 @@
-const CACHE_NAME = 'du-timetable-builder-v3';
+const CACHE_NAME = 'du-timetable-builder-v4';
 const CORE_ASSETS = [
   './', './index.html', './styles.css', './palette-loader.js', './contact-config.js',
   './app.js', './manifest.webmanifest', './assets/logo.svg',

@@ -9,7 +9,7 @@
   <title>DU College Timetable Builder</title>
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
   <header class="site-header">
@@ -39,22 +39,22 @@
       <div class="action-bar" aria-label="Timetable actions">
 
 <button type="button" class="button button-primary" id="exportBtn">
-  <img src="assets/icons/download.svg" class="button-icon" alt="" aria-hidden="true">
+  <img src="assets/icons/download.svg" class="button-icon" alt="" aria-hidden="true" width="18" height="18" style="width:18px;height:18px;max-width:18px;flex:0 0 18px">
   Save backup
 </button>
 
 <button type="button" class="button button-share" id="shareBtn">
-  <img src="assets/icons/share.svg" class="button-icon" alt="" aria-hidden="true">
+  <img src="assets/icons/share.svg" class="button-icon" alt="" aria-hidden="true" width="18" height="18" style="width:18px;height:18px;max-width:18px;flex:0 0 18px">
   Share
 </button>
 
 <button type="button" class="button button-accent" id="previewBtn">
-  <img src="assets/icons/eye.svg" class="button-icon" alt="" aria-hidden="true">
+  <img src="assets/icons/eye.svg" class="button-icon" alt="" aria-hidden="true" width="18" height="18" style="width:18px;height:18px;max-width:18px;flex:0 0 18px">
   Preview
 </button>
 
 <button type="button" class="button button-outline" id="printBtn">
-  <img src="assets/icons/file-pdf.svg" class="button-icon" alt="" aria-hidden="true">
+  <img src="assets/icons/file-pdf.svg" class="button-icon" alt="" aria-hidden="true" width="18" height="18" style="width:18px;height:18px;max-width:18px;flex:0 0 18px">
   Save PDF
 </button>
 
@@ -72,14 +72,14 @@
     <section class="workbench" aria-label="Timetable tools">
       <div class="tool-intro"><div><p class="eyebrow">SET IT UP ONCE. REUSE IT ALL SEMESTER.</p><h2>Timetable workspace</h2><p class="section-copy">Keep each task in its own place. Add a subject once, then reuse it when scheduling classes.</p></div><span class="workspace-label">YOUR CONTROL CENTRE</span></div>
       <nav class="tool-tabs" role="tablist" aria-label="Timetable tools">
-        <button type="button" class="tool-tab active" role="tab" aria-selected="true" aria-controls="tab-quick" data-tab="quick"><span class="tab-number">01</span><span class="tab-label"><strong>Quick add</strong><small>Schedule a class</small></span><span class="tab-arrow">↗</span></button>
-        <button type="button" class="tool-tab" role="tab" aria-selected="false" aria-controls="tab-subjects" data-tab="subjects"><span class="tab-number">02</span><span class="tab-label"><strong>Subjects & teachers</strong><small>Set up once</small></span><span class="tab-arrow">↗</span></button>
-        <button type="button" class="tool-tab" role="tab" aria-selected="false" aria-controls="tab-setup" data-tab="setup"><span class="tab-number">03</span><span class="tab-label"><strong>College & timings</strong><small>Saved details</small></span><span class="tab-arrow">↗</span></button>
-        <button type="button" class="tool-tab" role="tab" aria-selected="false" aria-controls="tab-reminders" data-tab="reminders"><span class="tab-number">04</span><span class="tab-label"><strong>Reminders</strong><small>Deadlines & tests</small></span><span class="tab-arrow">↗</span></button>
+        <button type="button" class="tool-tab active" role="tab" aria-selected="true" aria-controls="tab-quick" data-tab="quick" id="tabbtn-quick"><span class="tab-number">01</span><span class="tab-label"><strong>Quick add</strong><small>Schedule a class</small></span><span class="tab-arrow">↗</span></button>
+        <button type="button" class="tool-tab" role="tab" aria-selected="false" aria-controls="tab-subjects" data-tab="subjects" id="tabbtn-subjects"><span class="tab-number">02</span><span class="tab-label"><strong>Subjects & teachers</strong><small>Set up once</small></span><span class="tab-arrow">↗</span></button>
+        <button type="button" class="tool-tab" role="tab" aria-selected="false" aria-controls="tab-setup" data-tab="setup" id="tabbtn-setup"><span class="tab-number">03</span><span class="tab-label"><strong>College & timings</strong><small>Saved details</small></span><span class="tab-arrow">↗</span></button>
+        <button type="button" class="tool-tab" role="tab" aria-selected="false" aria-controls="tab-reminders" data-tab="reminders" id="tabbtn-reminders"><span class="tab-number">04</span><span class="tab-label"><strong>Reminders</strong><small>Deadlines & tests</small></span><span class="tab-arrow">↗</span></button>
       </nav>
 
-      <section id="tab-quick" class="tool-panel active" role="tabpanel" aria-labelledby="quick" data-panel="quick">
-        <div class="panel-heading"><div><p class="eyebrow">LESS TYPING. MORE DONE.</p><h3 id="classFormHeading">Add a class</h3><p class="section-copy">Choose a saved subject and teacher, then place it in your week. Full names are optional extras.</p></div><span class="panel-icon icon-lime"><img src="assets/icons/plus.svg" alt="" aria-hidden="true"></span></div>
+      <section id="tab-quick" class="tool-panel active" role="tabpanel" aria-labelledby="tabbtn-quick" data-panel="quick">
+        <div class="panel-heading"><div><p class="eyebrow">LESS TYPING. MORE DONE.</p><h3 id="classFormHeading">Add a class</h3><p class="section-copy">Choose a saved subject and teacher, then place it in your week. Full names are optional extras.</p></div><span class="panel-icon icon-lime"><img src="assets/icons/plus.svg" alt="" aria-hidden="true" width="21" height="21" style="width:21px;height:21px;max-width:21px;flex:0 0 21px"></span></div>
         <form id="classForm" class="form-layout">
           <div class="field field-wide"><label for="subjectSelect">Subject <span class="required-mark">*</span></label><select id="subjectSelect" required><option value="">Choose from saved subjects…</option></select><span class="field-help">Add your subjects in the Subjects & teachers tab first.</span></div>
           <div class="field field-wide"><label for="classType">Class type <span class="required-mark">*</span></label><select id="classType" required><option value="Lecture">Lecture</option><option value="Tutorial">Tutorial</option><option value="Lab">Lab / Practical</option><option value="Other">Other</option></select><span class="field-help">One subject can have lectures and labs. You do not need to create the subject twice.</span></div>
@@ -95,8 +95,8 @@
         <div class="class-summary-head"><div><h4>Scheduled classes</h4><p class="section-copy">Edit any class from the timetable or here.</p></div><span id="classCount" class="count-pill">0</span></div><div id="classList" class="class-list"></div>
       </section>
 
-      <section id="tab-subjects" class="tool-panel" role="tabpanel" aria-labelledby="subjects" data-panel="subjects" hidden>
-        <div class="panel-heading"><div><p class="eyebrow">YOUR SEMESTER LIBRARY</p><h3 id="subjectFormHeading">Save your subjects</h3><p class="section-copy">Enter each subject once. Short code is all the timetable needs; full names are optional.</p></div><span class="panel-icon icon-lilac"><img src="assets/icons/book.svg" alt="" aria-hidden="true"></span></div>
+      <section id="tab-subjects" class="tool-panel" role="tabpanel" aria-labelledby="tabbtn-subjects" data-panel="subjects" hidden>
+        <div class="panel-heading"><div><p class="eyebrow">YOUR SEMESTER LIBRARY</p><h3 id="subjectFormHeading">Save your subjects</h3><p class="section-copy">Enter each subject once. Short code is all the timetable needs; full names are optional.</p></div><span class="panel-icon icon-lilac"><img src="assets/icons/book.svg" alt="" aria-hidden="true" width="21" height="21" style="width:21px;height:21px;max-width:21px;flex:0 0 21px"></span></div>
         <form id="subjectForm" class="form-layout">
           <input type="hidden" id="subjectId">
           <div class="field"><label for="subjectShort">Subject short form <span class="required-mark">*</span></label><input id="subjectShort" required maxlength="24" placeholder="e.g. EOMP, DSA, VAC"></div>
@@ -110,8 +110,8 @@
         <div class="subject-list-heading"><div><h4>Your subject library</h4><p class="section-copy">Each subject can have its own teachers and custom color.</p></div><span id="subjectCount" class="count-pill">0 subjects</span></div><div id="subjectList" class="subject-list"></div><p id="noSubjects" class="empty-note">No subjects saved yet. Add your core, GE, AEC, VAC and practical subjects above.</p>
       </section>
 
-      <section id="tab-setup" class="tool-panel" role="tabpanel" aria-labelledby="setup" data-panel="setup" hidden>
-        <div class="panel-heading"><div><p class="eyebrow">ONE-TIME SETUP</p><h3>College & timings</h3><p class="section-copy">Your details autosave as you type. Update them when a new semester starts.</p></div><span class="panel-icon icon-blue"><img src="assets/icons/settings.svg" alt="" aria-hidden="true"></span></div>
+      <section id="tab-setup" class="tool-panel" role="tabpanel" aria-labelledby="tabbtn-setup" data-panel="setup" hidden>
+        <div class="panel-heading"><div><p class="eyebrow">ONE-TIME SETUP</p><h3>College & timings</h3><p class="section-copy">Your details autosave as you type. Update them when a new semester starts.</p></div><span class="panel-icon icon-blue"><img src="assets/icons/settings.svg" alt="" aria-hidden="true" width="21" height="21" style="width:21px;height:21px;max-width:21px;flex:0 0 21px"></span></div>
         <form id="settingsForm" class="form-layout">
           <div class="field field-wide"><label for="collegeName">College name</label><input id="collegeName" placeholder="e.g. Dyal Singh College"></div>
           <div class="field field-wide"><label for="courseName">Course / programme</label><input id="courseName" placeholder="e.g. B.Sc. Physical Science with CS"></div>
@@ -128,7 +128,7 @@
         </form>
       </section>
 
-      <section id="tab-reminders" class="tool-panel" role="tabpanel" aria-labelledby="reminders" data-panel="reminders" hidden>
+      <section id="tab-reminders" class="tool-panel" role="tabpanel" aria-labelledby="tabbtn-reminders" data-panel="reminders" hidden>
         <div class="panel-heading"><div><p class="eyebrow">KEEP THE IMPORTANT DATES CLOSE</p><h3 id="reminderFormHeading">Add a reminder</h3><p class="section-copy">Record tests, assignment submissions, practical files and presentations.</p></div><span class="panel-icon icon-peach">✦</span></div>
         <form id="reminderForm" class="form-layout">
           <input type="hidden" id="reminderId">
@@ -146,7 +146,7 @@
   </main>
 
   <footer class="site-footer" id="contact">
-    <div class="footer-inner"><div class="footer-brand"><img src="assets/logo.svg" alt="" class="footer-logo"><div><strong>DU College Timetable Builder</strong><p>A student-friendly planner for real college schedules.</p></div></div><div class="footer-feedback"><strong>Found a bug or have an idea?</strong><p>Help improve this free tool for students.</p><nav class="contact-links" aria-label="Creator contact links"><a id="contactEmail" class="contact-link" href="mailto:m4shere25@gmail.com"><img src="assets/icons/email.svg" alt="" width="19" height="19">Email</a><a id="contactInstagram" class="contact-link" href="https://www.instagram.com/m4s_here/" target="_blank" rel="noopener"><img src="assets/icons/instagram.svg" alt="" width="19" height="19">Instagram</a><a id="contactReddit" class="contact-link" href="https://www.reddit.com/user/m4s_here/" target="_blank" rel="noopener"><img src="assets/icons/reddit.svg" alt="" width="19" height="19">Reddit</a></nav></div><div class="footer-bottom"><span>© <span id="footerYear"></span> DU Timetable</span><span>Privacy-first · No account required</span></div></div>
+    <div class="footer-inner"><div class="footer-brand"><img src="assets/logo.svg" alt="" class="footer-logo"><div><strong>DU College Timetable Builder</strong><p>A student-friendly planner for real college schedules.</p></div></div><div class="footer-feedback"><strong>Found a bug or have an idea?</strong><p>Help improve this free tool for students.</p><nav class="contact-links" aria-label="Creator contact links"><a id="contactEmail" class="contact-link" href="mailto:m4shere25@gmail.com"><img src="assets/icons/email.svg" alt="" width="19" height="19" style="width:19px;height:19px;max-width:19px;flex:0 0 19px">Email</a><a id="contactInstagram" class="contact-link" href="https://www.instagram.com/m4s_here/" target="_blank" rel="noopener"><img src="assets/icons/instagram.svg" alt="" width="19" height="19" style="width:19px;height:19px;max-width:19px;flex:0 0 19px">Instagram</a><a id="contactReddit" class="contact-link" href="https://www.reddit.com/user/m4s_here/" target="_blank" rel="noopener"><img src="assets/icons/reddit.svg" alt="" width="19" height="19" style="width:19px;height:19px;max-width:19px;flex:0 0 19px">Reddit</a></nav></div><div class="footer-bottom"><span>© <span id="footerYear"></span> DU Timetable</span><span>Privacy-first · No account required</span></div></div>
   </footer>
 
   <dialog id="detailDialog" class="app-dialog"><div class="dialog-top"><div><p class="eyebrow">CLASS INFORMATION</p><h2 id="dialogTitle">Class details</h2></div><button type="button" class="icon-button" id="closeDialog" aria-label="Close details">×</button></div><div id="dialogLines" class="detail-lines"></div><div class="dialog-actions"><button type="button" class="button button-outline" id="dialogEditBtn">✎ Edit class</button><button type="button" class="button button-primary" id="dialogCloseBtn">Done</button></div></dialog>
@@ -154,12 +154,12 @@
   <dialog id="teacherDialog" class="app-dialog"><div class="dialog-top"><div><p class="eyebrow">SUBJECT TEACHERS</p><h2 id="teacherDialogTitle">Manage teachers</h2><p class="section-copy">Add every teacher who may take this subject or practical.</p></div><button type="button" class="icon-button" id="closeTeacherDialog" aria-label="Close teacher manager">×</button></div><div id="teacherDialogList" class="teacher-manager-list"></div><form id="teacherForm" class="form-layout compact-form"><input type="hidden" id="teacherSubjectId"><div class="field"><label for="teacherInitials">Initials / short form <span class="required-mark">*</span></label><input id="teacherInitials" required maxlength="18" placeholder="e.g. PK"></div><div class="field"><label for="teacherName">Full name <span class="optional-mark">OPTIONAL</span></label><input id="teacherName" maxlength="100" placeholder="Optional"></div><div class="form-actions field-wide"><button type="submit" class="button button-primary">＋ Add teacher</button></div><p id="teacherStatus" class="form-status field-wide" role="status"></p></form></dialog>
 
   <dialog id="previewDialog" class="preview-dialog"><div class="preview-modal-top no-print"><div><p class="eyebrow">SCREENSHOT / SHARE VIEW</p><h2>Your timetable preview</h2><p>Clean layout, no editing controls. Use your device's screenshot tool or Save PDF.</p></div><div class="preview-modal-actions"><button type="button" class="button button-outline" id="previewPrintBtn">
-  <img src="assets/icons/file-pdf.svg" class="button-icon" alt="" aria-hidden="true">
+  <img src="assets/icons/file-pdf.svg" class="button-icon" alt="" aria-hidden="true" width="18" height="18" style="width:18px;height:18px;max-width:18px;flex:0 0 18px">
   Save PDF
 </button><button type="button" id="closePreviewBtn" class="button button-outline">Close preview</button></div></div><div id="screenshotSurface" class="screenshot-surface"><div class="screenshot-head"><div><p id="previewCollege" class="preview-college"></p><h1 id="previewTitle">My College Timetable</h1><p id="previewMeta"></p><p id="previewTiming"></p></div><div class="preview-mark">WEEKLY<br>SCHEDULE</div></div><div class="desktop-table-wrap preview-table-wrap"><table id="previewTable" aria-label="Screenshot timetable"><thead id="previewTimeHeader"></thead><tbody id="previewTableBody"></tbody></table></div><div id="previewMobileSchedule" class="mobile-schedule preview-mobile-schedule"></div><div id="previewLegend" class="legend preview-legend"></div><p class="screenshot-footer">Made with DU College Timetable Builder · Keep this copy handy for the week</p></div></dialog>
 
   <script src="contact-config.js"></script>
-  <script src="palette-loader.js"></script>
-  <script src="app.js"></script>
+  <script src="palette-loader.js?v=3"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>
